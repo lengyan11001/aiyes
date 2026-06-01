@@ -34,21 +34,24 @@ function apiKeyParts(plain) {
 }
 
 async function assertSeedCanOwnUsername() {
-  const existing = await prisma.user.findUnique({
-    where: { username: USERNAME },
+  const existingUsers = await prisma.user.findMany({
+    where: {
+      OR: [{ id: USER_ID }, { username: USERNAME }],
+    },
     include: { apiKeys: { where: { id: API_KEY_ID }, select: { id: true } } },
   });
 
-  if (!existing) return;
+  for (const existing of existingUsers) {
+    const looksLikeSeed = existing.id === USER_ID || existing.apiKeys.length > 0;
+    if (!OVERWRITE_EXISTING && !looksLikeSeed) {
+      throw new Error(
+        `User "${USERNAME}" already exists and does not look like OPC seed data. ` +
+          "Set OPC_ACCEPTANCE_OVERWRITE_EXISTING=1 only if this account is safe to replace.",
+      );
+    }
 
-  if (!OVERWRITE_EXISTING && existing.id !== USER_ID && existing.apiKeys.length === 0) {
-    throw new Error(
-      `User "${USERNAME}" already exists and does not look like OPC seed data. ` +
-        "Set OPC_ACCEPTANCE_OVERWRITE_EXISTING=1 only if this account is safe to replace.",
-    );
+    await prisma.user.delete({ where: { id: existing.id } });
   }
-
-  await prisma.user.delete({ where: { id: existing.id } });
 }
 
 async function main() {
