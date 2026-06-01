@@ -176,13 +176,45 @@ function modelType(job: Pick<GenerationJob, "kind" | "model">) {
   return "生成";
 }
 
+function numberFromMetric(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const matched = value.match(/\d+(\.\d+)?/);
+    const parsed = Number(matched?.[0] ?? 0);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+}
+
 function videoSeconds(job: Pick<GenerationJob, "kind" | "model" | "params">) {
   if (job.kind !== JobKind.VIDEO) return 0;
   const params = jsonObject(job.params);
   const rawDuration = params.duration as string | number | null | undefined;
   const duration = isAllowedModel(job.model) ? normalizeVideoDuration(rawDuration, job.model) : rawDuration;
-  const seconds = Number(String(duration ?? "").match(/\d+/)?.[0] ?? 0);
+  const seconds = numberFromMetric(duration);
   return Number.isFinite(seconds) && seconds > 0 ? seconds : 0;
+}
+
+function audioSeconds(job: Pick<GenerationJob, "params" | "result">) {
+  const params = jsonObject(job.params);
+  const result = jsonObject(job.result);
+  return Math.round(
+    numberFromMetric(
+      params.audio_duration ??
+        params.audioDuration ??
+        params.audio_seconds ??
+        params.audioSeconds ??
+        result.audio_duration ??
+        result.audioDuration ??
+        result.audio_seconds ??
+        result.audioSeconds,
+    ),
+  );
+}
+
+function invoiceUrl(raw: unknown) {
+  const data = jsonObject(raw);
+  return firstString(data.invoice_url, data.invoiceUrl, data.invoice, data.invoice_url_pdf) || "";
 }
 
 function jobResultText(job: Pick<GenerationJob, "kind" | "model" | "params">) {
@@ -302,7 +334,7 @@ async function buildSubjectData(
     prisma.order.findMany({
       where: orderWhere,
       orderBy: { paidAt: "asc" },
-      select: { id: true, amountCents: true, paidAt: true, createdAt: true },
+      select: { id: true, amountCents: true, paidAt: true, createdAt: true, raw: true },
     }),
     prisma.generationJob.findMany({
       where: { ...jobWhere, status: "COMPLETED", chargedCents: { gt: 0 } },
@@ -311,7 +343,7 @@ async function buildSubjectData(
     }),
     prisma.generationJob.findMany({
       where: { userId: user.id, status: "COMPLETED" },
-      select: { kind: true, model: true, params: true },
+      select: { kind: true, model: true, params: true, result: true },
     }),
   ]);
 
@@ -321,6 +353,11 @@ async function buildSubjectData(
       if (job.kind === JobKind.VIDEO) {
         sum.video_num += 1;
         sum.video_duration += videoSeconds(job);
+      }
+      const audioDuration = audioSeconds(job);
+      if (audioDuration > 0) {
+        sum.audio_num += 1;
+        sum.audio_duration += audioDuration;
       }
       return sum;
     },
@@ -333,7 +370,7 @@ async function buildSubjectData(
       recharge: orders.map((order) => ({
         amount: pointsToYuan(order.amountCents),
         time: (order.paidAt || order.createdAt).toISOString(),
-        invoice_url: "",
+        invoice_url: invoiceUrl(order.raw),
         order_id: order.id,
       })),
       consume: consumeJobs.map((job) => ({
@@ -352,8 +389,6 @@ export async function getOpcData(
   opcList: NormalizedOpcSubject[],
   from?: Date,
   to?: Date,
-  startDate: string | null = null,
-  endDate: string | null = null,
 ) {
   const entries: Array<[string, OpcDataSubjectResponse]> = [];
   for (let index = 0; index < opcList.length; index += OPC_DATA_CONCURRENCY) {

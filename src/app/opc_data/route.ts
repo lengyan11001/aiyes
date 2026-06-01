@@ -15,7 +15,7 @@ export async function POST(request: Request) {
       return NextResponse.json({}, { status: 404 });
     }
 
-    return NextResponse.json(await getOpcData(parsed.opcList, parsed.from, parsed.to, parsed.startDate, parsed.endDate));
+    return NextResponse.json(await getOpcData(parsed.opcList, parsed.from, parsed.to));
   } catch (error) {
     console.error("opc_data failed", error);
     return NextResponse.json({}, { status: 404 });
