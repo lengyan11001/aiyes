@@ -29,6 +29,16 @@ a {
   color: #fff;
 }
 
+.aiyes-dark-input::selection {
+  background: #f8fafc;
+  color: #020617;
+}
+
+.aiyes-dark-input::-moz-selection {
+  background: #f8fafc;
+  color: #020617;
+}
+
 .aiyes-grid-sweep {
   background:
     linear-gradient(115deg, transparent 20%, rgba(103, 232, 249, 0.18) 42%, transparent 62%),

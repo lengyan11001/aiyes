@@ -590,7 +590,7 @@ export function GenerationWorkbench({
                   onChange={uploadReferenceImage}
                 />
                 <textarea
-                  className="h-20 resize-none rounded-lg border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-white/40"
+                  className="aiyes-dark-input h-20 resize-none rounded-lg border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-white/40"
                   placeholder={mode === "VIDEO" ? "描述你想要生成的视频内容..." : "描述你想要生成的图片内容..."}
                   value={prompt}
                   onChange={(event) => setPrompt(event.target.value)}
