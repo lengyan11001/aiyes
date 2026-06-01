@@ -5,7 +5,7 @@ import { createHash, randomBytes } from "crypto";
 import { nanoid } from "nanoid";
 
 const DATABASE_URL = process.env.DATABASE_URL || "postgresql://aiyes:change-me@localhost:5432/aiyes?schema=public";
-const USERNAME = process.env.OPC_ACCEPTANCE_USERNAME || "A公司";
+const USERNAME = process.env.OPC_ACCEPTANCE_USERNAME || "深圳市上融科技有限公司";
 const PASSWORD = process.env.OPC_ACCEPTANCE_PASSWORD || `${randomBytes(18).toString("base64url")}Aa1!`;
 const USER_ID = process.env.OPC_ACCEPTANCE_USER_ID || "opc_acceptance_user_a";
 const API_KEY_ID = process.env.OPC_ACCEPTANCE_API_KEY_ID || "opc_acceptance_key_a";
