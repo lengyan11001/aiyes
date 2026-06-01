@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { jsonError } from "@/lib/http";
+import { syncPendingGenerationJobs } from "@/lib/job-sync";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 
 export async function GET() {
   const user = await requireUser();
   if (!user) return jsonError("请先登录。", 401, "unauthorized");
+  await syncPendingGenerationJobs({ userId: user.id, take: 10 });
   const jobs = await prisma.generationJob.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },

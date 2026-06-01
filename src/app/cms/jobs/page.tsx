@@ -1,5 +1,6 @@
 import { CmsShell } from "@/components/cms-shell";
 import { cmsDate, jobStatusText } from "@/lib/cms";
+import { syncPendingGenerationJobs } from "@/lib/job-sync";
 import { prisma } from "@/lib/prisma";
 import { formatPoints } from "@/lib/units";
 
@@ -12,6 +13,7 @@ export default async function CmsJobsPage({ searchParams }: { searchParams: Prom
   const q = (params.q || "").trim();
   const status = params.status || "";
   const kind = params.kind === "IMAGE" || params.kind === "VIDEO" ? params.kind : "";
+  await syncPendingGenerationJobs({ take: 30 });
   const jobs = await prisma.generationJob.findMany({
     where: {
       ...(status ? { status: status as never } : {}),

@@ -54,8 +54,8 @@ export async function createApizTask(model: string, params: Record<string, unkno
   });
 }
 
-export async function queryApizTask(taskId: string) {
-  return requestApiz<ApizQueryResponse>("/api/v3/tasks/query", { task_id: taskId });
+export async function queryApizTask(taskId: string, timeoutMs = env.APIZ_TIMEOUT_MS) {
+  return requestApiz<ApizQueryResponse>("/api/v3/tasks/query", { task_id: taskId }, timeoutMs);
 }
 
 export async function waitApizTask(taskId: string, timeoutMs = env.APIZ_SYNC_WAIT_MS) {

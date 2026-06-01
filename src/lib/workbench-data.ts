@@ -1,5 +1,6 @@
 import { estimateGenerationPrice } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
+import { syncPendingGenerationJobs } from "@/lib/job-sync";
 import type { MenuUser } from "@/components/user-menu";
 import type { WorkbenchJob } from "@/components/generation-workbench";
 
@@ -18,6 +19,8 @@ export async function getWorkbenchData(user: {
     role: user.role,
     balanceCents: user.balanceCents,
   };
+
+  await syncPendingGenerationJobs({ userId: user.id, take: 10 });
 
   const jobs = await prisma.generationJob.findMany({
     where: { userId: user.id },

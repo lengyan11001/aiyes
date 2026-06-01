@@ -14,5 +14,12 @@ npm run build
 cp -a .env .next/standalone/.env
 npm run db:migrate
 
+if [ -f deploy/aiyes-job-sync.service ] && [ -f deploy/aiyes-job-sync.timer ]; then
+  cp -a deploy/aiyes-job-sync.service /etc/systemd/system/aiyes-job-sync.service
+  cp -a deploy/aiyes-job-sync.timer /etc/systemd/system/aiyes-job-sync.timer
+  systemctl daemon-reload
+  systemctl enable --now aiyes-job-sync.timer
+fi
+
 systemctl restart "$SERVICE_NAME"
 systemctl is-active "$SERVICE_NAME"

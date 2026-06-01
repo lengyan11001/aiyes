@@ -1,0 +1,11 @@
+[Unit]
+Description=Aiyes pending generation job sync
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/aiyes-platform/current
+EnvironmentFile=/opt/aiyes-platform/current/.env
+ExecStart=/usr/bin/node scripts/sync-pending-jobs.mjs
+User=root
