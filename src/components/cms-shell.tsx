@@ -35,6 +35,7 @@ export async function CmsShell({
     email: admin.email,
     role: admin.role,
     balanceCents: admin.balanceCents,
+    companyVerificationStatus: admin.companyVerification?.status ?? null,
   };
 
   return (

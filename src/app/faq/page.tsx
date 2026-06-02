@@ -1,4 +1,5 @@
 import { SiteHeader } from "@/components/site-header";
+import { menuUser } from "@/lib/account-data";
 import { requireUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -26,19 +27,11 @@ const faqs = [
 
 export default async function FaqPage() {
   const user = await requireUser();
-  const menuUser = user
-    ? {
-        name: user.name,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        balanceCents: user.balanceCents,
-      }
-    : null;
+  const headerUser = user ? menuUser(user) : null;
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
-      <SiteHeader user={menuUser} />
+      <SiteHeader user={headerUser} />
       <section className="border-b border-white/10 px-6 py-14">
         <div className="mx-auto max-w-7xl">
           <p className="text-sm font-medium text-slate-400">FAQ</p>

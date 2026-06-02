@@ -68,6 +68,11 @@ export async function requireUser() {
       balanceCents: true,
       createdAt: true,
       status: true,
+      companyVerification: {
+        select: {
+          status: true,
+        },
+      },
     },
   });
 }

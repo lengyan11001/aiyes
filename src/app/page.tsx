@@ -16,6 +16,7 @@ import {
 import { HeroPreviewVideo, HoverVideoCard, type CaseStudy } from "@/components/home-media";
 import { LegalFooter } from "@/components/legal-footer";
 import { SiteHeader } from "@/components/site-header";
+import { menuUser } from "@/lib/account-data";
 import { requireUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -104,19 +105,11 @@ const flowSteps = [
 
 export default async function Home() {
   const user = await requireUser();
-  const menuUser = user
-    ? {
-        name: user.name,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        balanceCents: user.balanceCents,
-      }
-    : null;
+  const headerUser = user ? menuUser(user) : null;
 
   return (
     <main className="overflow-hidden bg-[#f3f6fb] text-slate-950">
-      <SiteHeader user={menuUser} />
+      <SiteHeader user={headerUser} />
 
       <section className="relative overflow-hidden bg-[#060914] text-white">
         <div className="absolute inset-0 bg-[linear-gradient(118deg,#060914_0%,#091523_48%,#17202f_100%)]" />

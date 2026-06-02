@@ -15,6 +15,7 @@ export function menuUser(user: {
   email?: string | null;
   role: string;
   balanceCents: number;
+  companyVerification?: { status: "PENDING" | "APPROVED" | "REJECTED" } | null;
 }) {
   return {
     name: user.name,
@@ -22,6 +23,7 @@ export function menuUser(user: {
     email: user.email,
     role: user.role,
     balanceCents: user.balanceCents,
+    companyVerificationStatus: user.companyVerification?.status ?? null,
   };
 }
 

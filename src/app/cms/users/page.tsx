@@ -1,4 +1,4 @@
-import { CmsCreditAction, CmsPasswordAction, CmsStatusAction } from "@/components/cms-user-actions";
+import { CmsCreditAction, CmsPasswordAction, CmsStatusAction, CmsVerificationAction } from "@/components/cms-user-actions";
 import { CmsShell } from "@/components/cms-shell";
 import { cmsDate } from "@/lib/cms";
 import { prisma } from "@/lib/prisma";
@@ -28,6 +28,7 @@ export default async function CmsUsersPage({ searchParams }: { searchParams: Pro
     orderBy: { createdAt: "desc" },
     take: 100,
     include: {
+      companyVerification: true,
       _count: {
         select: { jobs: true, orders: true, apiKeys: true },
       },
@@ -64,6 +65,7 @@ export default async function CmsUsersPage({ searchParams }: { searchParams: Pro
                 <th className="p-3">账号</th>
                 <th className="p-3">角色/状态</th>
                 <th className="p-3">积分余额</th>
+                <th className="p-3">企业认证</th>
                 <th className="p-3">统计</th>
                 <th className="p-3">登录/注册</th>
                 <th className="p-3">增加积分</th>
@@ -73,7 +75,7 @@ export default async function CmsUsersPage({ searchParams }: { searchParams: Pro
             </thead>
             <tbody>
               {users.length === 0 && (
-                <tr><td className="p-4 text-slate-500" colSpan={8}>暂无用户</td></tr>
+                <tr><td className="p-4 text-slate-500" colSpan={9}>暂无用户</td></tr>
               )}
               {users.map((user) => (
                 <tr key={user.id} className="border-t border-slate-100 align-top">
@@ -88,6 +90,24 @@ export default async function CmsUsersPage({ searchParams }: { searchParams: Pro
                     </span>
                   </td>
                   <td className="p-3 font-medium">{formatPoints(user.balanceCents)}</td>
+                  <td className="p-3">
+                    <CmsVerificationAction
+                      userId={user.id}
+                      username={user.username}
+                      verification={
+                        user.companyVerification
+                          ? {
+                              id: user.companyVerification.id,
+                              status: user.companyVerification.status,
+                              imageUrl: user.companyVerification.imageUrl,
+                              rejectReason: user.companyVerification.rejectReason,
+                              createdAt: user.companyVerification.createdAt.toISOString(),
+                              reviewedAt: user.companyVerification.reviewedAt?.toISOString() ?? null,
+                            }
+                          : null
+                      }
+                    />
+                  </td>
                   <td className="p-3 text-slate-600">
                     <p>任务 {user._count.jobs}</p>
                     <p>订单 {user._count.orders}</p>

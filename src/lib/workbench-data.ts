@@ -11,6 +11,7 @@ export async function getWorkbenchData(user: {
   email?: string | null;
   role: string;
   balanceCents: number;
+  companyVerification?: { status: "PENDING" | "APPROVED" | "REJECTED" } | null;
 }) {
   const menuUser: MenuUser = {
     name: user.name,
@@ -18,6 +19,7 @@ export async function getWorkbenchData(user: {
     email: user.email,
     role: user.role,
     balanceCents: user.balanceCents,
+    companyVerificationStatus: user.companyVerification?.status ?? null,
   };
 
   await syncPendingGenerationJobs({ userId: user.id, take: 10 });

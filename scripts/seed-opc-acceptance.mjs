@@ -33,6 +33,143 @@ function apiKeyParts(plain) {
   };
 }
 
+function minutesAfter(base, minutes) {
+  return new Date(date(base).getTime() + minutes * 60 * 1000);
+}
+
+function yuanToPoints(yuan) {
+  return Math.round(yuan * 100);
+}
+
+function buildOrders() {
+  return Array.from({ length: 36 }, (_, index) => {
+    const day = 1 + (index % 28);
+    const amountYuan = [300, 500, 800, 1000, 1500, 2000][index % 6];
+    const createdAt = date(`2026-05-${String(day).padStart(2, "0")}T02:${String(index % 50).padStart(2, "0")}:00.000Z`);
+    const paidAt = minutesAfter(createdAt.toISOString(), 2);
+    const orderNo = String(index + 1).padStart(3, "0");
+    return {
+      id: `opc_acceptance_order_202605_${orderNo}`,
+      userId: USER_ID,
+      provider: "wechat",
+      status: "PAID",
+      amountCents: yuanToPoints(amountYuan),
+      creditsCents: yuanToPoints(amountYuan),
+      title: `OPC验收充值 ${amountYuan}元`,
+      wxTransactionId: `opc_acceptance_wx_202605_${orderNo}`,
+      raw: {
+        invoice_url: `https://aiyes.vip/invoices/opc-acceptance-202605-${orderNo}.pdf`,
+        acceptance_seed: true,
+      },
+      createdAt,
+      paidAt,
+    };
+  });
+}
+
+function jobTemplate(index) {
+  const day = 1 + (index % 28);
+  const hour = 3 + (index % 12);
+  const minute = (index * 7) % 60;
+  const createdAt = date(`2026-05-${String(day).padStart(2, "0")}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00.000Z`);
+  const completedAt = minutesAfter(createdAt.toISOString(), 3 + (index % 4));
+  const no = String(index + 1).padStart(3, "0");
+  return { createdAt, completedAt, no };
+}
+
+function buildJobs() {
+  const imageModels = [
+    { model: "openai/gpt-image-2", cost: 16, params: { size: "1K", quality: "medium", aspectRatio: "1:1" } },
+    { model: "fal-ai/bytedance/seedream/v5/lite/text-to-image", cost: 14, params: { imageSize: "auto_2K", aspectRatio: "16:9" } },
+    { model: "fal-ai/nano-banana-2", cost: 32, params: { imageSize: "1K", aspectRatio: "4:3" } },
+  ];
+  const videoModels = [
+    { model: "seedance2", cost: 20, duration: 10, params: { duration: 10, videoModel: "standard_vip", resolution: "1080p", aspectRatio: "16:9" } },
+    { model: "alibaba/happy-horse/image-to-video", cost: 4.48, duration: 8, params: { duration: 8, resolution: "720p", aspectRatio: "9:16" } },
+    { model: "fal-ai/veo3.1/fast/image-to-video", cost: 4.8, duration: 8, params: { duration: "8s", resolution: "720p", aspectRatio: "16:9" } },
+  ];
+
+  const images = Array.from({ length: 42 }, (_, index) => {
+    const template = jobTemplate(index);
+    const picked = imageModels[index % imageModels.length];
+    return {
+      id: `opc_acceptance_job_image_202605_${template.no}`,
+      userId: USER_ID,
+      apiKeyId: API_KEY_ID,
+      upstreamTaskId: `opc-acceptance-upstream-image-202605-${template.no}`,
+      kind: "IMAGE",
+      model: picked.model,
+      status: "COMPLETED",
+      prompt: `OPC验收图片：5月营销素材 ${template.no}`,
+      params: picked.params,
+      result: { image_url: `https://aiyes.vip/opc-acceptance/image-202605-${template.no}.png` },
+      chargedCents: yuanToPoints(picked.cost),
+      clientIp: "127.0.0.1",
+      createdAt: template.createdAt,
+      completedAt: template.completedAt,
+    };
+  });
+
+  const videos = Array.from({ length: 38 }, (_, index) => {
+    const template = jobTemplate(index + 42);
+    const picked = videoModels[index % videoModels.length];
+    return {
+      id: `opc_acceptance_job_video_202605_${template.no}`,
+      userId: USER_ID,
+      apiKeyId: API_KEY_ID,
+      upstreamTaskId: `opc-acceptance-upstream-video-202605-${template.no}`,
+      kind: "VIDEO",
+      model: picked.model,
+      status: "COMPLETED",
+      prompt: `OPC验收视频：5月客户案例 ${template.no}`,
+      params: { ...picked.params, audio_duration: picked.duration },
+      result: {
+        video_url: `https://aiyes.vip/opc-acceptance/video-202605-${template.no}.mp4`,
+        audio_duration: picked.duration,
+      },
+      chargedCents: yuanToPoints(picked.cost),
+      clientIp: "127.0.0.1",
+      createdAt: template.createdAt,
+      completedAt: template.completedAt,
+    };
+  });
+
+  return [...images, ...videos];
+}
+
+function buildLedgers(orders, jobs) {
+  const events = [
+    ...orders.map((order) => ({
+      id: `opc_acceptance_ledger_credit_${order.id.replace("opc_acceptance_order_", "")}`,
+      userId: USER_ID,
+      apiKeyId: null,
+      jobId: null,
+      type: "CREDIT",
+      amountCents: order.creditsCents,
+      model: null,
+      note: `OPC验收充值 ${order.id}`,
+      createdAt: minutesAfter(order.paidAt.toISOString(), 0.02),
+    })),
+    ...jobs.map((job) => ({
+      id: `opc_acceptance_ledger_debit_${job.id.replace("opc_acceptance_job_", "")}`,
+      userId: USER_ID,
+      apiKeyId: API_KEY_ID,
+      jobId: job.id,
+      type: "DEBIT",
+      amountCents: -job.chargedCents,
+      model: job.model,
+      note: job.kind === "IMAGE" ? "OPC验收图片消耗" : "OPC验收视频消耗",
+      createdAt: minutesAfter(job.completedAt.toISOString(), 0.02),
+    })),
+  ].sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime());
+
+  let balance = 0;
+  return events.map((event) => {
+    balance += event.amountCents;
+    return { ...event, balanceAfter: balance };
+  });
+}
+
 async function assertSeedCanOwnUsername() {
   const existingUsers = await prisma.user.findMany({
     where: {
@@ -56,6 +193,10 @@ async function assertSeedCanOwnUsername() {
 
 async function main() {
   const key = apiKeyParts(API_KEY);
+  const orders = buildOrders();
+  const jobs = buildJobs();
+  const ledgers = buildLedgers(orders, jobs);
+  const finalBalance = ledgers.at(-1)?.balanceAfter ?? 0;
 
   await assertSeedCanOwnUsername();
 
@@ -69,11 +210,18 @@ async function main() {
         role: UserRole.USER,
         status: "ACTIVE",
         passwordHash: await hash(PASSWORD, 12),
-        balanceCents: 144552,
+        balanceCents: finalBalance,
+        companyVerification: {
+          create: {
+            status: "APPROVED",
+            imageUrl: "https://aiyes.vip/opc-acceptance/company-verification.png",
+            reviewedAt: date("2026-05-01T01:00:00.000Z"),
+          },
+        },
         apiKeys: {
           create: {
             id: API_KEY_ID,
-            name: "OPC验收稳定 Token",
+            name: "OPC Acceptance Stable Token",
             prefix: key.prefix,
             last4: key.last4,
             keyHash: key.keyHash,
@@ -84,197 +232,26 @@ async function main() {
       },
     });
 
-    await tx.order.createMany({
-      data: [
-        {
-          id: "opc_acceptance_order_20260405",
-          userId: USER_ID,
-          provider: "wechat",
-          status: "PAID",
-          amountCents: 50000,
-          creditsCents: 50000,
-          title: "OPC验收充值 500元",
-          wxTransactionId: "opc_acceptance_wx_20260405",
-          raw: {
-            invoice_url: "https://aiyes.vip/invoices/opc-acceptance-20260405.pdf",
-            acceptance_seed: true,
-          },
-          createdAt: date("2026-04-05T02:10:00.000Z"),
-          paidAt: date("2026-04-05T02:12:00.000Z"),
-        },
-        {
-          id: "opc_acceptance_order_20260420",
-          userId: USER_ID,
-          provider: "wechat",
-          status: "PAID",
-          amountCents: 100000,
-          creditsCents: 100000,
-          title: "OPC验收充值 1000元",
-          wxTransactionId: "opc_acceptance_wx_20260420",
-          raw: {
-            invoice_url: "https://aiyes.vip/invoices/opc-acceptance-20260420.pdf",
-            acceptance_seed: true,
-          },
-          createdAt: date("2026-04-20T03:20:00.000Z"),
-          paidAt: date("2026-04-20T03:21:00.000Z"),
-        },
-      ],
-    });
-
-    await tx.generationJob.createMany({
-      data: [
-        {
-          id: "opc_acceptance_job_image_20260406",
-          userId: USER_ID,
-          apiKeyId: API_KEY_ID,
-          upstreamTaskId: "opc-acceptance-upstream-image-20260406",
-          kind: "IMAGE",
-          model: "openai/gpt-image-2",
-          status: "COMPLETED",
-          prompt: "OPC验收图片：企业展厅海报",
-          params: { size: "1K", quality: "medium", aspectRatio: "1:1" },
-          result: { image_url: "https://aiyes.vip/opc-acceptance/image-20260406.png" },
-          chargedCents: 1600,
-          clientIp: "127.0.0.1",
-          createdAt: date("2026-04-06T06:30:00.000Z"),
-          completedAt: date("2026-04-06T06:31:00.000Z"),
-        },
-        {
-          id: "opc_acceptance_job_video_20260410",
-          userId: USER_ID,
-          apiKeyId: API_KEY_ID,
-          upstreamTaskId: "opc-acceptance-upstream-video-20260410",
-          kind: "VIDEO",
-          model: "seedance2",
-          status: "COMPLETED",
-          prompt: "OPC验收视频：产品发布会开场",
-          params: {
-            duration: 10,
-            videoModel: "standard_vip",
-            resolution: "1080p",
-            aspectRatio: "16:9",
-            audio_duration: 10,
-          },
-          result: { video_url: "https://aiyes.vip/opc-acceptance/video-20260410.mp4", audio_duration: 10 },
-          chargedCents: 2000,
-          clientIp: "127.0.0.1",
-          createdAt: date("2026-04-10T08:00:00.000Z"),
-          completedAt: date("2026-04-10T08:04:00.000Z"),
-        },
-        {
-          id: "opc_acceptance_job_image_20260512",
-          userId: USER_ID,
-          apiKeyId: API_KEY_ID,
-          upstreamTaskId: "opc-acceptance-upstream-image-20260512",
-          kind: "IMAGE",
-          model: "fal-ai/bytedance/seedream/v5/lite/text-to-image",
-          status: "COMPLETED",
-          prompt: "OPC验收图片：5月营销素材",
-          params: { imageSize: "auto_2K", aspectRatio: "16:9" },
-          result: { image_url: "https://aiyes.vip/opc-acceptance/image-20260512.png" },
-          chargedCents: 1400,
-          clientIp: "127.0.0.1",
-          createdAt: date("2026-05-12T04:15:00.000Z"),
-          completedAt: date("2026-05-12T04:16:00.000Z"),
-        },
-        {
-          id: "opc_acceptance_job_video_20260515",
-          userId: USER_ID,
-          apiKeyId: API_KEY_ID,
-          upstreamTaskId: "opc-acceptance-upstream-video-20260515",
-          kind: "VIDEO",
-          model: "alibaba/happy-horse/image-to-video",
-          status: "COMPLETED",
-          prompt: "OPC验收视频：5月客户案例",
-          params: { duration: 8, resolution: "720p", aspectRatio: "9:16", audio_duration: 8 },
-          result: { video_url: "https://aiyes.vip/opc-acceptance/video-20260515.mp4", audio_duration: 8 },
-          chargedCents: 448,
-          clientIp: "127.0.0.1",
-          createdAt: date("2026-05-15T05:20:00.000Z"),
-          completedAt: date("2026-05-15T05:24:00.000Z"),
-        },
-      ],
-    });
-
-    await tx.usageLedger.createMany({
-      data: [
-        {
-          id: "opc_acceptance_ledger_credit_20260405",
-          userId: USER_ID,
-          apiKeyId: null,
-          jobId: null,
-          type: "CREDIT",
-          amountCents: 50000,
-          balanceAfter: 50000,
-          model: null,
-          note: "OPC验收充值 opc_acceptance_order_20260405",
-          createdAt: date("2026-04-05T02:12:01.000Z"),
-        },
-        {
-          id: "opc_acceptance_ledger_debit_image_20260406",
-          userId: USER_ID,
-          apiKeyId: API_KEY_ID,
-          jobId: "opc_acceptance_job_image_20260406",
-          type: "DEBIT",
-          amountCents: -1600,
-          balanceAfter: 48400,
-          model: "openai/gpt-image-2",
-          note: "OPC验收图片消耗",
-          createdAt: date("2026-04-06T06:31:01.000Z"),
-        },
-        {
-          id: "opc_acceptance_ledger_credit_20260420",
-          userId: USER_ID,
-          apiKeyId: null,
-          jobId: null,
-          type: "CREDIT",
-          amountCents: 100000,
-          balanceAfter: 148400,
-          model: null,
-          note: "OPC验收充值 opc_acceptance_order_20260420",
-          createdAt: date("2026-04-20T03:21:01.000Z"),
-        },
-        {
-          id: "opc_acceptance_ledger_debit_video_20260410",
-          userId: USER_ID,
-          apiKeyId: API_KEY_ID,
-          jobId: "opc_acceptance_job_video_20260410",
-          type: "DEBIT",
-          amountCents: -2000,
-          balanceAfter: 146400,
-          model: "seedance2",
-          note: "OPC验收视频消耗",
-          createdAt: date("2026-04-10T08:04:01.000Z"),
-        },
-        {
-          id: "opc_acceptance_ledger_debit_image_20260512",
-          userId: USER_ID,
-          apiKeyId: API_KEY_ID,
-          jobId: "opc_acceptance_job_image_20260512",
-          type: "DEBIT",
-          amountCents: -1400,
-          balanceAfter: 145000,
-          model: "fal-ai/bytedance/seedream/v5/lite/text-to-image",
-          note: "OPC验收5月图片消耗",
-          createdAt: date("2026-05-12T04:16:01.000Z"),
-        },
-        {
-          id: "opc_acceptance_ledger_debit_video_20260515",
-          userId: USER_ID,
-          apiKeyId: API_KEY_ID,
-          jobId: "opc_acceptance_job_video_20260515",
-          type: "DEBIT",
-          amountCents: -448,
-          balanceAfter: 144552,
-          model: "alibaba/happy-horse/image-to-video",
-          note: "OPC验收5月视频消耗",
-          createdAt: date("2026-05-15T05:24:01.000Z"),
-        },
-      ],
-    });
+    await tx.order.createMany({ data: orders });
+    await tx.generationJob.createMany({ data: jobs });
+    await tx.usageLedger.createMany({ data: ledgers });
   });
 
-  console.log(JSON.stringify({ username: USERNAME, apiKeyPrefix: key.prefix, apiKeyLast4: key.last4 }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        username: USERNAME,
+        apiKeyPrefix: key.prefix,
+        apiKeyLast4: key.last4,
+        orders: orders.length,
+        jobs: jobs.length,
+        ledgers: ledgers.length,
+        balanceCents: finalBalance,
+      },
+      null,
+      2,
+    ),
+  );
 }
 
 main()
