@@ -212,11 +212,6 @@ function audioSeconds(job: Pick<GenerationJob, "params" | "result">) {
   );
 }
 
-function invoiceUrl(raw: unknown) {
-  const data = jsonObject(raw);
-  return firstString(data.invoice_url, data.invoiceUrl, data.invoice, data.invoice_url_pdf) || "";
-}
-
 function jobResultText(job: Pick<GenerationJob, "kind" | "model" | "params">) {
   if (job.kind === JobKind.IMAGE) return "图片1张";
   const seconds = videoSeconds(job);
@@ -334,7 +329,7 @@ async function buildSubjectData(
     prisma.order.findMany({
       where: orderWhere,
       orderBy: { paidAt: "asc" },
-      select: { id: true, amountCents: true, paidAt: true, createdAt: true, raw: true },
+      select: { id: true, amountCents: true, paidAt: true, createdAt: true },
     }),
     prisma.generationJob.findMany({
       where: { ...jobWhere, status: "COMPLETED", chargedCents: { gt: 0 } },
@@ -370,7 +365,7 @@ async function buildSubjectData(
       recharge: orders.map((order) => ({
         amount: pointsToYuan(order.amountCents),
         time: (order.paidAt || order.createdAt).toISOString(),
-        invoice_url: invoiceUrl(order.raw),
+        invoice_url: "",
         order_id: order.id,
       })),
       consume: consumeJobs.map((job) => ({

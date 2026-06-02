@@ -58,7 +58,6 @@ function buildOrders() {
       title: `OPC验收充值 ${amountYuan}元`,
       wxTransactionId: `opc_acceptance_wx_202605_${orderNo}`,
       raw: {
-        invoice_url: `https://aiyes.vip/invoices/opc-acceptance-202605-${orderNo}.pdf`,
         acceptance_seed: true,
       },
       createdAt,
