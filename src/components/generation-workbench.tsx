@@ -597,8 +597,8 @@ export function GenerationWorkbench({
                   onChange={(event) => setPrompt(event.target.value)}
                 />
               </div>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2">
+              <div className="mt-3 flex items-start justify-between gap-3">
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setMode(mode === "VIDEO" ? "IMAGE" : "VIDEO")}
@@ -647,15 +647,15 @@ export function GenerationWorkbench({
                   <button
                     type="button"
                     onClick={() => setShowImageUrl((value) => !value)}
-                    className="inline-flex h-10 items-center gap-2 rounded-md border border-white/10 px-3 text-sm text-slate-300 hover:bg-white/10 hover:text-white"
+                    className="inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-white/10 px-3 text-sm text-slate-300 hover:bg-white/10 hover:text-white"
                     title="粘贴参考图 URL"
                   >
                     <Link2 className="h-4 w-4" />
                     URL
                   </button>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-slate-400">
+                <div className="flex shrink-0 items-center gap-3 whitespace-nowrap">
+                  <span className="shrink-0 text-xs text-slate-400">
                     预估消耗：
                     <b className="text-rose-300">{pricingLoading ? "计算中..." : formatPoints(estimatedPrice)}</b>
                   </span>
@@ -663,7 +663,7 @@ export function GenerationWorkbench({
                     type="button"
                     disabled={loading}
                     onClick={submit}
-                    className="inline-flex h-11 items-center gap-2 rounded-lg bg-white px-5 text-sm font-medium text-slate-950 disabled:opacity-50"
+                    className="inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg bg-white px-5 text-sm font-medium text-slate-950 disabled:opacity-50"
                   >
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                     发送任务
