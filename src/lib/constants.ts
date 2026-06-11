@@ -60,7 +60,7 @@ export const MODEL_CATALOG = [
       ],
       aspectRatio: ["16:9", "21:9", "9:16", "1:1", "4:3", "3:4"].map((value) => ({ value, label: value })),
     },
-    pricing: { type: "custom", detail: "seedance2 售卖价格" },
+    pricing: { type: "custom", detail: "seedance2 计费规则" },
   },
   {
     id: "openai/gpt-image-2",
@@ -81,7 +81,7 @@ export const MODEL_CATALOG = [
       ],
       aspectRatio: ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3"].map((value) => ({ value, label: value })),
     },
-    pricing: { type: "custom", detail: "GPT Image 2 售卖价格" },
+    pricing: { type: "custom", detail: "GPT Image 2 计费规则" },
   },
   {
     id: "alibaba/happy-horse/image-to-video",

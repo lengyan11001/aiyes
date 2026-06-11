@@ -181,8 +181,8 @@ function videoPointsPerSecond(videoModel: VideoModelOption, resolution: string) 
   return seedanceResolutionOptions(videoModel).find((option) => option.value === normalizedResolution)?.pointsPerSecond ?? 50;
 }
 
-function detail(prefix: string, model: ModelMeta, extra: string) {
-  return `${prefix}：${model.label} / ${extra}`;
+function detail(model: ModelMeta, extra: string) {
+  return `${model.label} / ${extra}`;
 }
 
 export function estimateGenerationPrice(input: PriceEstimateInput): PriceEstimate {
@@ -193,7 +193,7 @@ export function estimateGenerationPrice(input: PriceEstimateInput): PriceEstimat
     return {
       points: imagePriceTable[size][quality],
       source: "sale_pricing",
-      detail: detail("售卖价", meta, `${size} / ${quality === "low" ? "低质量" : quality === "high" ? "高质量" : "中质量"}`),
+      detail: detail(meta, `${size} / ${quality === "low" ? "低质量" : quality === "high" ? "高质量" : "中质量"}`),
     };
   }
 
@@ -206,7 +206,7 @@ export function estimateGenerationPrice(input: PriceEstimateInput): PriceEstimat
     return {
       points: Math.ceil(pointsPerSecond * seconds),
       source: "sale_pricing",
-      detail: detail("售卖价", meta, `${tier?.label || "快速"} / ${resolution} / ${pointsPerSecond}积分/秒 x ${seconds}秒`),
+      detail: detail(meta, `${tier?.label || "fast"} / ${resolution} / ${pointsPerSecond}积分/秒 x ${seconds}秒`),
     };
   }
 
@@ -216,7 +216,7 @@ export function estimateGenerationPrice(input: PriceEstimateInput): PriceEstimat
       return {
         points,
         source: "sale_pricing",
-        detail: detail("APIZ原价", meta, meta.pricingLabel),
+        detail: detail(meta, meta.pricingLabel),
       };
     }
     if (meta.pricing.type === "matrix") {
@@ -225,7 +225,7 @@ export function estimateGenerationPrice(input: PriceEstimateInput): PriceEstimat
       return {
         points,
         source: "sale_pricing",
-        detail: detail("APIZ原价", meta, `${size} / ${points}积分`),
+        detail: detail(meta, `${size} / ${points}积分`),
       };
     }
   }
@@ -234,7 +234,7 @@ export function estimateGenerationPrice(input: PriceEstimateInput): PriceEstimat
     return {
       points: Math.ceil(meta.pricing.base ?? 0),
       source: "sale_pricing",
-      detail: detail("APIZ原价", meta, meta.pricingLabel),
+      detail: detail(meta, meta.pricingLabel),
     };
   }
 
@@ -248,7 +248,7 @@ export function estimateGenerationPrice(input: PriceEstimateInput): PriceEstimat
     return {
       points: Math.ceil(points),
       source: "sale_pricing",
-      detail: detail("APIZ原价", meta, `${durationKey.replace("s", "秒")} / ${points}积分`),
+      detail: detail(meta, `${durationKey.replace("s", "秒")} / ${points}积分`),
     };
   }
 
@@ -257,7 +257,7 @@ export function estimateGenerationPrice(input: PriceEstimateInput): PriceEstimat
     return {
       points: Math.ceil(points),
       source: "sale_pricing",
-      detail: detail("APIZ原价", meta, `${resolution} / ${durationKey.replace("s", "秒")} / ${points}积分`),
+      detail: detail(meta, `${resolution} / ${durationKey.replace("s", "秒")} / ${points}积分`),
     };
   }
 
@@ -266,13 +266,13 @@ export function estimateGenerationPrice(input: PriceEstimateInput): PriceEstimat
     return {
       points: Math.ceil(rate * seconds),
       source: "sale_pricing",
-      detail: detail("APIZ原价", meta, `${resolution ? `${resolution} / ` : ""}${rate}积分/秒 x ${seconds}秒`),
+      detail: detail(meta, `${resolution ? `${resolution} / ` : ""}${rate}积分/秒 x ${seconds}秒`),
     };
   }
 
   return {
     points: Math.ceil(meta.pricing.base ?? 0),
     source: "sale_pricing",
-    detail: detail("APIZ原价", meta, meta.pricingLabel),
+    detail: detail(meta, meta.pricingLabel),
   };
 }

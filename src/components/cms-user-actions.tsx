@@ -64,11 +64,16 @@ export function CmsCreditAction({ userId }: { userId: string }) {
 }
 
 export function CmsPasswordAction({ userId }: { userId: string }) {
+  const [open, setOpen] = useState(false);
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
   async function submit() {
+    if (password.length < 8) {
+      setMessage("密码至少 8 位");
+      return;
+    }
     setLoading(true);
     setMessage("");
     try {
@@ -81,6 +86,10 @@ export function CmsPasswordAction({ userId }: { userId: string }) {
       if (!res.ok) throw new Error(payload?.error?.message || "修改失败");
       setPassword("");
       setMessage("密码已修改");
+      window.setTimeout(() => {
+        setOpen(false);
+        setMessage("");
+      }, 600);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "修改失败");
     } finally {
@@ -89,27 +98,82 @@ export function CmsPasswordAction({ userId }: { userId: string }) {
   }
 
   return (
-    <div className="grid gap-2">
-      <div className="flex flex-wrap gap-2">
-        <input
-          className="h-9 w-40 rounded-md border border-slate-300 px-2 text-sm outline-none focus:border-blue-400"
-          type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          placeholder="新密码"
-        />
-        <button
-          type="button"
-          onClick={submit}
-          disabled={loading || password.length < 8}
-          className="inline-flex h-9 items-center gap-1 rounded-md border border-slate-300 px-3 text-xs font-medium text-slate-700 disabled:opacity-50"
-        >
-          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <KeyRound className="h-3.5 w-3.5" />}
-          改密码
-        </button>
-      </div>
-      {message && <p className="text-xs text-slate-500">{message}</p>}
-    </div>
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(true);
+          setMessage("");
+        }}
+        className="inline-flex h-9 items-center gap-1 rounded-md border border-slate-300 px-3 text-xs font-medium text-slate-700 hover:border-slate-400"
+      >
+        <KeyRound className="h-3.5 w-3.5" />
+        修改密码
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-[260] flex items-center justify-center bg-slate-950/45 px-4 py-6">
+          <form
+            className="w-full max-w-md overflow-hidden rounded-lg bg-white text-slate-950 shadow-2xl"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void submit();
+            }}
+          >
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+              <div>
+                <h2 className="text-lg font-semibold">修改密码</h2>
+                <p className="mt-1 text-sm text-slate-500">输入 8-128 位新密码</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  setPassword("");
+                  setMessage("");
+                }}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-800"
+                title="关闭"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-5">
+              <input
+                autoFocus
+                className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm outline-none focus:border-blue-400"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="新密码"
+              />
+              {message && <p className="mt-3 text-sm text-slate-500">{message}</p>}
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    setPassword("");
+                    setMessage("");
+                  }}
+                  className="inline-flex h-10 items-center rounded-md border border-slate-300 px-4 text-sm font-medium text-slate-700"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="inline-flex h-10 items-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-medium text-white disabled:opacity-60"
+                >
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+                  保存
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
+    </>
   );
 }
 

@@ -240,7 +240,6 @@ export function GenerationWorkbench({
   const [videoModel, setVideoModel] = useState("fast");
   const [videoResolution, setVideoResolution] = useState("720p");
   const [estimatedPrice, setEstimatedPrice] = useState(estimatedPrices.VIDEO);
-  const [pricingDetail, setPricingDetail] = useState("按当前售卖价预估");
   const [pricingLoading, setPricingLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [uploadingReference, setUploadingReference] = useState(false);
@@ -361,12 +360,10 @@ export function GenerationWorkbench({
         if (!res.ok) throw new Error(payload?.error?.message || "价格计算失败");
         if (!cancelled) {
           setEstimatedPrice(payload.estimate.points);
-          setPricingDetail(payload.estimate.detail || "按当前售卖价预估");
         }
-      } catch (error) {
+      } catch {
         if (!cancelled) {
           setEstimatedPrice(estimatedPrices[mode]);
-          setPricingDetail(error instanceof Error ? error.message : "价格计算失败");
         }
       } finally {
         if (!cancelled) setPricingLoading(false);
@@ -673,7 +670,6 @@ export function GenerationWorkbench({
                   </button>
                 </div>
               </div>
-              <p className="mt-2 text-xs text-slate-400">{pricingDetail}</p>
               {showImageUrl && (
                 <input
                   className="mt-3 h-10 w-full rounded-md border border-white/10 bg-slate-950 px-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-white/40"
