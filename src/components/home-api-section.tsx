@@ -519,7 +519,6 @@ function GuidePanel({ guide, copied, onCopy }: CopyProps & { guide: string }) {
     <div className="grid gap-5">
       <PanelHeader
         title="完整接入文档"
-        text="给客户时直接复制这一份。里面包含认证、模型查询、价格预估、图片生成、视频生成、任务查询和全部参数取值。"
       />
       <button
         type="button"
@@ -608,11 +607,11 @@ type CopyProps = {
   onCopy: (id: string, text: string) => void;
 };
 
-function PanelHeader({ title, text }: { title: string; text: string }) {
+function PanelHeader({ title, text }: { title: string; text?: string }) {
   return (
     <div>
       <h3 className="text-2xl font-semibold">{title}</h3>
-      <p className="mt-2 leading-7 text-slate-300">{text}</p>
+      {text && <p className="mt-2 leading-7 text-slate-300">{text}</p>}
     </div>
   );
 }
