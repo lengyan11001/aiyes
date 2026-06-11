@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { MODEL_CATALOG, type AllowedModel } from "@/lib/constants";
-import { estimateGenerationPrice } from "@/lib/pricing";
+import { estimateGenerationPrice, VIDEO_MODEL_OPTIONS } from "@/lib/pricing";
 
 export async function GET() {
   return NextResponse.json({
@@ -22,6 +22,15 @@ export async function GET() {
           pricingLabel: model.pricingLabel,
           default: Boolean(model.default),
           parameters: model.parameters ?? {},
+          ...(model.id === "seedance2"
+            ? {
+                video_model_options: VIDEO_MODEL_OPTIONS.map(({ value, label, pointsPerSecond }) => ({
+                  value,
+                  label,
+                  pointsPerSecond,
+                })),
+              }
+            : {}),
           pricing: {
             unit: "points",
             label: model.pricingLabel,
