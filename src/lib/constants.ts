@@ -49,11 +49,12 @@ export const MODEL_CATALOG = [
     taskType: "i2v",
     description: "适合 AI 助手接入视频生成、动态视觉和镜头化内容创作。",
     summary: "4-15 秒，支持文生视频和参考图生视频。",
-    pricingLabel: "按档位与时长计费",
+    pricingLabel: "按档位、分辨率和时长计费",
     default: true,
     parameters: {
-      duration: ["4", "5", "8", "10", "15"].map((value) => ({ value, label: `${value}秒` })),
+      duration: Array.from({ length: 12 }, (_, index) => String(index + 4)).map((value) => ({ value, label: `${value}秒` })),
       resolution: [
+        { value: "480p", label: "480p" },
         { value: "720p", label: "720p" },
         { value: "1080p", label: "1080p" },
       ],

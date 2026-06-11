@@ -33,7 +33,7 @@ export function buildProviderParams(input: GenerationProviderInput) {
       model: upstreamVideoModel(input.video_model ?? input.quality),
       duration: normalizeVideoDuration(input.duration, input.model),
       ratio: normalizeVideoRatio(input.ratio ?? input.aspect_ratio, input.model),
-      resolution: normalizeVideoResolution(input.resolution, input.model),
+      resolution: normalizeVideoResolution(input.resolution, input.model, input.video_model ?? input.quality),
       image_files: input.image_url ? [input.image_url] : options.image_files,
     };
   }

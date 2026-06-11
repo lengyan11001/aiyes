@@ -24,10 +24,11 @@ export async function GET() {
           parameters: model.parameters ?? {},
           ...(model.id === "seedance2"
             ? {
-                video_model_options: VIDEO_MODEL_OPTIONS.map(({ value, label, pointsPerSecond }) => ({
+                video_model_options: VIDEO_MODEL_OPTIONS.map(({ value, label, pointsPerSecond, resolutions }) => ({
                   value,
                   label,
                   pointsPerSecond,
+                  resolutions,
                 })),
               }
             : {}),

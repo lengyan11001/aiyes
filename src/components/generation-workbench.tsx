@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import type { MenuUser } from "@/components/user-menu";
-import { VIDEO_MODEL_OPTIONS } from "@/lib/pricing";
+import { defaultSeedanceResolution, seedanceResolutionOptions, VIDEO_MODEL_OPTIONS } from "@/lib/pricing";
 import { IMAGE_MODELS, MODEL_META, VIDEO_MODELS, type ModelMeta } from "@/lib/constants";
 import { formatPoints } from "@/lib/units";
 
@@ -258,7 +258,11 @@ export function GenerationWorkbench({
   const currentModel = mode === "IMAGE" ? imageModel : videoBaseModel;
   const currentModelMeta = MODEL_META[currentModel as keyof typeof MODEL_META] as ModelMeta;
   const currentParams = currentModelMeta.parameters ?? {};
-  const showVideoResolution = currentModel === "seedance2" ? videoModel === "standard_vip" : Boolean(currentParams.resolution?.length);
+  const videoResolutionOptions =
+    currentModel === "seedance2"
+      ? seedanceResolutionOptions(videoModel).map(({ value, label }) => ({ value, label }))
+      : (currentParams.resolution ?? []);
+  const showVideoResolution = currentModel === "seedance2" ? Boolean(videoResolutionOptions.length) : Boolean(currentParams.resolution?.length);
   const selectClass =
     "h-10 rounded-md border border-white/10 bg-slate-950 px-3 text-sm text-white outline-none focus:border-white/40";
 
@@ -276,7 +280,7 @@ export function GenerationWorkbench({
     if (!meta) return;
     setVideoBaseModel(model);
     setDuration(firstValue(meta.parameters?.duration, model === "seedance2" ? "4" : "5"));
-    setVideoResolution(firstValue(meta.parameters?.resolution, "720p"));
+    setVideoResolution(model === "seedance2" ? defaultSeedanceResolution(videoModel) : firstValue(meta.parameters?.resolution, "720p"));
     setAspectRatio(firstValue(meta.parameters?.aspectRatio, "16:9"));
   }
 
@@ -621,7 +625,15 @@ export function GenerationWorkbench({
                     <>
                       <OptionSelect value={aspectRatio} options={currentParams.aspectRatio} onChange={setAspectRatio} className={selectClass} />
                       {currentModel === "seedance2" && (
-                        <select value={videoModel} onChange={(event) => setVideoModel(event.target.value)} className={selectClass}>
+                        <select
+                          value={videoModel}
+                          onChange={(event) => {
+                            const nextVideoModel = event.target.value;
+                            setVideoModel(nextVideoModel);
+                            setVideoResolution(defaultSeedanceResolution(nextVideoModel));
+                          }}
+                          className={selectClass}
+                        >
                           {VIDEO_MODEL_OPTIONS.map((option) => (
                             <option key={option.value} value={option.value}>
                               {option.label}
@@ -630,7 +642,7 @@ export function GenerationWorkbench({
                         </select>
                       )}
                       {showVideoResolution && (
-                        <OptionSelect value={videoResolution} options={currentParams.resolution} onChange={setVideoResolution} className={selectClass} />
+                        <OptionSelect value={videoResolution} options={videoResolutionOptions} onChange={setVideoResolution} className={selectClass} />
                       )}
                       <OptionSelect value={duration} options={currentParams.duration} onChange={setDuration} className={selectClass} />
                     </>

@@ -24,17 +24,17 @@ const endpoints = [
 ];
 
 const seedanceVideoModels = [
-  { value: "fast", label: "快速", price: "85 积分/秒" },
-  { value: "standard", label: "标准", price: "100 积分/秒" },
-  { value: "fast_vip", label: "高阶快速", price: "100 积分/秒" },
-  { value: "standard_vip", label: "高阶标准", price: "120 积分/秒；1080p 为 200 积分/秒" },
+  { value: "fast", label: "fast", price: "720p：85 积分/秒" },
+  { value: "standard", label: "标准", price: "720p：85 积分/秒" },
+  { value: "fast_vip", label: "fast VIP", price: "480p：50 积分/秒；720p：100 积分/秒" },
+  { value: "standard_vip", label: "标准 VIP", price: "480p：85 积分/秒；720p：120 积分/秒；1080p：200 积分/秒" },
 ];
 
 const modelRows = [
   {
     id: "seedance2",
     required: "model, prompt",
-    params: "duration: 4/5/8/10/15；aspect_ratio: 16:9/21:9/9:16/1:1/4:3/3:4；video_model: fast/standard/fast_vip/standard_vip；resolution: 720p/1080p",
+    params: "duration: 4-15 的整数；aspect_ratio: 16:9/21:9/9:16/1:1/4:3/3:4；video_model: fast/standard/fast_vip/standard_vip；resolution: fast 和 standard 固定 720p，fast_vip 可传 480p/720p，standard_vip 可传 480p/720p/1080p",
   },
   {
     id: "openai/gpt-image-2",
@@ -131,8 +131,8 @@ const paramSections = [
     rows: [
       { name: "model", required: "是", type: "string", values: "模型 ID，见模型参数表" },
       { name: "duration", required: "否", type: "string | number", values: "视频时长，按模型取值传" },
-      { name: "video_model", required: "否", type: "string", values: "seedance2 可传 fast / standard / fast_vip / standard_vip" },
-      { name: "resolution", required: "否", type: "string", values: "720p / 1080p / 4k 等，按模型取值传" },
+      { name: "video_model", required: "否", type: "string", values: "seedance2: fast / standard / fast_vip / standard_vip" },
+      { name: "resolution", required: "否", type: "string", values: "seedance2: fast、standard 固定 720p；fast_vip 可传 480p/720p；standard_vip 可传 480p/720p/1080p；其他模型见模型参数表" },
       { name: "size 或 image_size", required: "否", type: "string", values: "图片尺寸，按模型取值传" },
       { name: "quality", required: "否", type: "string", values: "low / medium / high" },
       { name: "aspect_ratio 或 ratio", required: "否", type: "string", values: "16:9 / 9:16 / 1:1 等，按模型取值传" },
@@ -158,8 +158,8 @@ const paramSections = [
       { name: "image_url", required: "按模型", type: "url", values: "图生视频传公网可访问图片地址" },
       { name: "duration", required: "否", type: "string | number", values: "按模型取值传" },
       { name: "aspect_ratio 或 ratio", required: "否", type: "string", values: "16:9 / 9:16 / 1:1 等，按模型取值传" },
-      { name: "resolution", required: "否", type: "string", values: "720p / 1080p / 4k 等，按模型取值传" },
-      { name: "video_model", required: "否", type: "string", values: "仅 seedance2：fast / standard / fast_vip / standard_vip" },
+      { name: "resolution", required: "否", type: "string", values: "seedance2: fast、standard 固定 720p；fast_vip 可传 480p/720p；standard_vip 可传 480p/720p/1080p；其他模型见模型参数表" },
+      { name: "video_model", required: "否", type: "string", values: "仅 seedance2: fast / standard / fast_vip / standard_vip" },
       { name: "async", required: "否", type: "boolean", values: "true / false，建议 true" },
     ],
   },
@@ -242,10 +242,10 @@ Base URL: https://aiyes.vip
 - GET /api/v1/jobs/{id}
 
 seedance2 video_model:
-- fast
-- standard
-- fast_vip
-- standard_vip
+- fast: 720p，85 积分/秒
+- standard: 720p，85 积分/秒
+- fast_vip: 480p 50 积分/秒；720p 100 积分/秒
+- standard_vip: 480p 85 积分/秒；720p 120 积分/秒；1080p 200 积分/秒
 
 图片生成必传:
 - model

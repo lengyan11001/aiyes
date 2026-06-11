@@ -22,32 +22,57 @@ const imagePriceTable: Record<string, Record<string, number>> = {
   "4K": { low: 8, medium: 44, high: 164 },
 };
 
+type SeedanceResolutionOption = {
+  value: string;
+  label: string;
+  pointsPerSecond: number;
+};
+
+type SeedanceVideoModelOption = {
+  value: string;
+  upstreamValue: string;
+  label: string;
+  pointsPerSecond: number;
+  resolutions: readonly SeedanceResolutionOption[];
+};
+
 export const VIDEO_MODEL_OPTIONS = [
   {
     value: "fast",
     upstreamValue: "seedance2.0_fast_direct",
-    label: "快速",
+    label: "fast",
     pointsPerSecond: 85,
+    resolutions: [{ value: "720p", label: "720p", pointsPerSecond: 85 }],
   },
   {
     value: "standard",
     upstreamValue: "seedance2.0_direct",
     label: "标准",
-    pointsPerSecond: 100,
+    pointsPerSecond: 85,
+    resolutions: [{ value: "720p", label: "720p", pointsPerSecond: 85 }],
   },
   {
     value: "fast_vip",
     upstreamValue: "seedance2.0_fast_vision",
-    label: "高阶快速",
+    label: "fast VIP",
     pointsPerSecond: 100,
+    resolutions: [
+      { value: "480p", label: "480p", pointsPerSecond: 50 },
+      { value: "720p", label: "720p", pointsPerSecond: 100 },
+    ],
   },
   {
     value: "standard_vip",
     upstreamValue: "seedance2.0_vision",
-    label: "高阶标准",
+    label: "标准 VIP",
     pointsPerSecond: 120,
+    resolutions: [
+      { value: "480p", label: "480p", pointsPerSecond: 85 },
+      { value: "720p", label: "720p", pointsPerSecond: 120 },
+      { value: "1080p", label: "1080p", pointsPerSecond: 200 },
+    ],
   },
-] as const;
+] as const satisfies readonly SeedanceVideoModelOption[];
 
 export type VideoModelOption = (typeof VIDEO_MODEL_OPTIONS)[number]["value"];
 
@@ -109,8 +134,22 @@ export function upstreamVideoModel(value?: string | null) {
   return VIDEO_MODEL_OPTIONS.find((option) => option.value === normalized)?.upstreamValue ?? "seedance2.0_fast_direct";
 }
 
-export function normalizeVideoResolution(value?: string | null, model: AllowedModel = "seedance2") {
-  if (model === "seedance2") return value === "1080p" ? "1080p" : "720p";
+export function seedanceResolutionOptions(value?: string | null) {
+  const normalized = normalizeVideoModel(value);
+  return VIDEO_MODEL_OPTIONS.find((option) => option.value === normalized)?.resolutions ?? VIDEO_MODEL_OPTIONS[0].resolutions;
+}
+
+export function defaultSeedanceResolution(value?: string | null) {
+  const options = seedanceResolutionOptions(value);
+  return options.find((option) => option.value === "720p")?.value ?? options[0]?.value ?? "720p";
+}
+
+export function normalizeVideoResolution(value?: string | null, model: AllowedModel = "seedance2", videoModel?: string | null) {
+  if (model === "seedance2") {
+    const options = seedanceResolutionOptions(videoModel);
+    const text = value == null ? "" : String(value);
+    return options.find((option) => option.value === text)?.value ?? defaultSeedanceResolution(videoModel);
+  }
   const meta = MODEL_META[model];
   return normalizeFromOptions(value, meta.parameters?.resolution) ?? firstParameter(meta, "resolution") ?? "720p";
 }
@@ -138,8 +177,8 @@ export function normalizeImageAspectRatio(value?: string | null, model: AllowedM
 }
 
 function videoPointsPerSecond(videoModel: VideoModelOption, resolution: string) {
-  if (videoModel === "standard_vip" && resolution === "1080p") return 200;
-  return VIDEO_MODEL_OPTIONS.find((option) => option.value === videoModel)?.pointsPerSecond ?? 50;
+  const normalizedResolution = normalizeVideoResolution(resolution, "seedance2", videoModel);
+  return seedanceResolutionOptions(videoModel).find((option) => option.value === normalizedResolution)?.pointsPerSecond ?? 50;
 }
 
 function detail(prefix: string, model: ModelMeta, extra: string) {
@@ -161,14 +200,13 @@ export function estimateGenerationPrice(input: PriceEstimateInput): PriceEstimat
   if (input.model === "seedance2") {
     const seconds = normalizeVideoDuration(input.duration, input.model) as number;
     const videoModel = normalizeVideoModel(input.videoModel ?? input.quality);
-    const resolution = normalizeVideoResolution(input.resolution, input.model);
+    const resolution = normalizeVideoResolution(input.resolution, input.model, videoModel);
     const tier = VIDEO_MODEL_OPTIONS.find((option) => option.value === videoModel);
     const pointsPerSecond = videoPointsPerSecond(videoModel, resolution);
-    const resolutionText = videoModel === "standard_vip" ? ` / ${resolution}` : "";
     return {
       points: Math.ceil(pointsPerSecond * seconds),
       source: "sale_pricing",
-      detail: detail("售卖价", meta, `${tier?.label || "快速"}${resolutionText} / ${pointsPerSecond}积分/秒 x ${seconds}秒`),
+      detail: detail("售卖价", meta, `${tier?.label || "快速"} / ${resolution} / ${pointsPerSecond}积分/秒 x ${seconds}秒`),
     };
   }
 
