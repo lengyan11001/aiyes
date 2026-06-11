@@ -4,12 +4,13 @@ import { useMemo, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Check, Code2, Copy, Image as ImageIcon, KeyRound, ListChecks, Video } from "lucide-react";
 
-type TabKey = "guide" | "examples" | "models";
+type TabKey = "guide" | "params" | "examples" | "models";
 
 const tokenPlaceholder = "ak_xxx";
 
 const tabs: Array<{ key: TabKey; label: string; icon: LucideIcon }> = [
   { key: "guide", label: "接入要点", icon: ListChecks },
+  { key: "params", label: "参数定义", icon: Code2 },
   { key: "examples", label: "调用示例", icon: Code2 },
   { key: "models", label: "模型参数", icon: Video },
 ];
@@ -117,6 +118,62 @@ const modelRows = [
   },
 ];
 
+const paramSections = [
+  {
+    title: "公共请求头",
+    rows: [
+      { name: "Authorization", required: "是", type: "string", values: "Bearer YOUR_TOKEN" },
+      { name: "Content-Type", required: "生成接口必填", type: "string", values: "application/json" },
+    ],
+  },
+  {
+    title: "GET /api/v1/pricing/estimate",
+    rows: [
+      { name: "model", required: "是", type: "string", values: "模型 ID，见模型参数表" },
+      { name: "duration", required: "否", type: "string | number", values: "视频时长，按模型取值传" },
+      { name: "video_model", required: "否", type: "string", values: "seedance2 可传 fast / standard / fast_vip / standard_vip" },
+      { name: "resolution", required: "否", type: "string", values: "720p / 1080p / 4k 等，按模型取值传" },
+      { name: "size 或 image_size", required: "否", type: "string", values: "图片尺寸，按模型取值传" },
+      { name: "quality", required: "否", type: "string", values: "low / medium / high" },
+      { name: "aspect_ratio 或 ratio", required: "否", type: "string", values: "16:9 / 9:16 / 1:1 等，按模型取值传" },
+    ],
+  },
+  {
+    title: "POST /api/v1/images/generations",
+    rows: [
+      { name: "model", required: "是", type: "string", values: "图片模型 ID，见模型参数表" },
+      { name: "prompt", required: "是", type: "string", values: "1-5000 字符" },
+      { name: "size", required: "否", type: "string", values: "1K / 2K / 4K / auto_2K 等，按模型取值传" },
+      { name: "quality", required: "否", type: "string", values: "low / medium / high" },
+      { name: "aspect_ratio", required: "否", type: "string", values: "1:1 / 16:9 / 9:16 等，按模型取值传" },
+      { name: "image_url", required: "否", type: "url", values: "公网可访问图片地址" },
+      { name: "async", required: "否", type: "boolean", values: "true / false，建议 true" },
+    ],
+  },
+  {
+    title: "POST /api/v1/videos/generations",
+    rows: [
+      { name: "model", required: "是", type: "string", values: "视频模型 ID，见模型参数表" },
+      { name: "prompt", required: "是", type: "string", values: "1-5000 字符" },
+      { name: "image_url", required: "按模型", type: "url", values: "图生视频传公网可访问图片地址" },
+      { name: "duration", required: "否", type: "string | number", values: "按模型取值传" },
+      { name: "aspect_ratio 或 ratio", required: "否", type: "string", values: "16:9 / 9:16 / 1:1 等，按模型取值传" },
+      { name: "resolution", required: "否", type: "string", values: "720p / 1080p / 4k 等，按模型取值传" },
+      { name: "video_model", required: "否", type: "string", values: "仅 seedance2：fast / standard / fast_vip / standard_vip" },
+      { name: "async", required: "否", type: "boolean", values: "true / false，建议 true" },
+    ],
+  },
+  {
+    title: "GET /api/v1/jobs/{id}",
+    rows: [
+      { name: "id", required: "是", type: "string", values: "生成接口返回的任务 ID" },
+      { name: "job.status", required: "返回", type: "string", values: "PENDING / PROCESSING / COMPLETED / FAILED" },
+      { name: "job.result", required: "返回", type: "object", values: "完成后返回生成结果" },
+      { name: "job.error", required: "返回", type: "string | null", values: "失败原因" },
+    ],
+  },
+];
+
 function modelListCurl(token: string) {
   return `curl https://aiyes.vip/api/v1/models \\
   -H "Authorization: Bearer ${token}"`;
@@ -163,6 +220,15 @@ function jobCurl(token: string) {
 }
 
 function guideText(token: string) {
+  const params = paramSections
+    .map((section) => {
+      const rows = section.rows
+        .map((row) => `- ${row.name}: ${row.required}，${row.type}，${row.values}`)
+        .join("\n");
+      return `${section.title}\n${rows}`;
+    })
+    .join("\n\n");
+
   return `Aiyes API 接入要点
 
 Base URL: https://aiyes.vip
@@ -195,6 +261,9 @@ seedance2 video_model:
 建议:
 - 生成接口传 async: true
 - 返回 id 后调用 /api/v1/jobs/{id} 查询结果
+
+参数定义:
+${params}
 `;
 }
 
@@ -278,6 +347,7 @@ export function HomeApiSection({
           </div>
           <div className="p-5 md:p-6">
             {active === "guide" && <GuidePanel guide={guide} copied={copied} onCopy={copy} />}
+            {active === "params" && <ParamsPanel />}
             {active === "examples" && <ExamplesPanel token={displayToken} copied={copied} onCopy={copy} />}
             {active === "models" && <ModelsPanel />}
           </div>
@@ -376,6 +446,17 @@ function ExamplesPanel({ token, copied, onCopy }: CopyProps & { token: string })
   );
 }
 
+function ParamsPanel() {
+  return (
+    <div className="grid gap-5">
+      <PanelHeader title="参数定义" />
+      {paramSections.map((section) => (
+        <ParamTable key={section.title} title={section.title} rows={section.rows} />
+      ))}
+    </div>
+  );
+}
+
 function ModelsPanel() {
   return (
     <div className="grid gap-5">
@@ -387,6 +468,32 @@ function ModelsPanel() {
             <code className="break-all font-mono text-cyan-100">{row.id}</code>
             <p className="text-slate-300"><span className="text-slate-500">必传：</span>{row.required}</p>
             <p className="leading-6 text-slate-300"><span className="text-slate-500">参数：</span>{row.params}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ParamTable({ title, rows }: { title: string; rows: Array<{ name: string; required: string; type: string; values: string }> }) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-white/10">
+      <div className="border-b border-white/10 bg-white/[0.04] px-4 py-3">
+        <h4 className="font-medium text-slate-100">{title}</h4>
+      </div>
+      <div className="grid bg-black/20 text-sm">
+        <div className="grid gap-2 border-b border-white/10 px-4 py-3 text-xs font-medium text-slate-500 md:grid-cols-[1fr_90px_120px_2fr]">
+          <span>参数</span>
+          <span>必填</span>
+          <span>类型</span>
+          <span>取值</span>
+        </div>
+        {rows.map((row) => (
+          <div key={`${title}-${row.name}`} className="grid gap-2 border-b border-white/10 px-4 py-3 last:border-b-0 md:grid-cols-[1fr_90px_120px_2fr]">
+            <code className="break-all font-mono text-cyan-100">{row.name}</code>
+            <span className="text-slate-300">{row.required}</span>
+            <span className="font-mono text-slate-300">{row.type}</span>
+            <span className="leading-6 text-slate-300">{row.values}</span>
           </div>
         ))}
       </div>
