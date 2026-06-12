@@ -30,7 +30,7 @@ export function buildProviderParams(input: GenerationProviderInput) {
     return {
       ...options,
       prompt: input.prompt,
-      model: upstreamVideoModel(input.video_model ?? input.quality),
+      model: upstreamVideoModel(input.video_model ?? input.quality, input.resolution),
       duration: normalizeVideoDuration(input.duration, input.model),
       ratio: normalizeVideoRatio(input.ratio ?? input.aspect_ratio, input.model),
       resolution: normalizeVideoResolution(input.resolution, input.model, input.video_model ?? input.quality),

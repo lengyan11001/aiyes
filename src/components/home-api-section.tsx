@@ -27,7 +27,7 @@ const seedanceVideoModels = [
   { value: "fast", label: "fast", price: "720p：85 积分/秒" },
   { value: "standard", label: "标准", price: "720p：85 积分/秒" },
   { value: "fast_vip", label: "fast VIP", price: "480p：50 积分/秒；720p：100 积分/秒" },
-  { value: "standard_vip", label: "标准 VIP", price: "480p：85 积分/秒；720p：120 积分/秒；1080p：200 积分/秒" },
+  { value: "standard_vip", label: "标准 VIP", price: "480p：85 积分/秒；720p：100 积分/秒；1080p：200 积分/秒" },
 ];
 
 const modelRows = [
@@ -245,7 +245,7 @@ seedance2 video_model:
 - fast: 720p，85 积分/秒
 - standard: 720p，85 积分/秒
 - fast_vip: 480p 50 积分/秒；720p 100 积分/秒
-- standard_vip: 480p 85 积分/秒；720p 120 积分/秒；1080p 200 积分/秒
+- standard_vip: 480p 85 积分/秒；720p 100 积分/秒；1080p 200 积分/秒
 
 图片生成必传:
 - model

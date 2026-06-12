@@ -65,10 +65,10 @@ export const VIDEO_MODEL_OPTIONS = [
     value: "standard_vip",
     upstreamValue: "seedance2.0_vision",
     label: "标准 VIP",
-    pointsPerSecond: 120,
+    pointsPerSecond: 100,
     resolutions: [
       { value: "480p", label: "480p", pointsPerSecond: 85 },
-      { value: "720p", label: "720p", pointsPerSecond: 120 },
+      { value: "720p", label: "720p", pointsPerSecond: 100 },
       { value: "1080p", label: "1080p", pointsPerSecond: 200 },
     ],
   },
@@ -129,8 +129,11 @@ export function normalizeVideoModel(value?: string | null): VideoModelOption {
   return "fast";
 }
 
-export function upstreamVideoModel(value?: string | null) {
+export function upstreamVideoModel(value?: string | null, resolution?: string | null) {
   const normalized = normalizeVideoModel(value);
+  if (normalized === "standard_vip" && normalizeVideoResolution(resolution, "seedance2", normalized) === "720p") {
+    return "seedance2.0_fast_vision";
+  }
   return VIDEO_MODEL_OPTIONS.find((option) => option.value === normalized)?.upstreamValue ?? "seedance2.0_fast_direct";
 }
 
