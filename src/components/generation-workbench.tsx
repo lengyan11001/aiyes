@@ -27,6 +27,7 @@ export type WorkbenchJob = {
   id: string;
   kind: JobKind;
   model: string;
+  displayModel?: string;
   status: JobStatus;
   prompt: string;
   result: unknown;
@@ -115,7 +116,8 @@ function firstValue(options?: readonly { value: string }[], fallback = "") {
   return options?.[0]?.value ?? fallback;
 }
 
-function jobDisplayModel(model: string) {
+function jobDisplayModel(model: string, displayModel?: string) {
+  if (displayModel) return displayModel;
   const meta = MODEL_META[model as keyof typeof MODEL_META];
   return meta?.shortLabel ?? meta?.label ?? model;
 }
@@ -477,7 +479,7 @@ export function GenerationWorkbench({
                 <p className="mt-2 line-clamp-2 text-sm leading-5 text-slate-200">{job.prompt}</p>
                 <div className="mt-2 flex items-center gap-1 text-xs text-slate-400">
                   {job.kind === "IMAGE" ? <ImageIcon className="h-3.5 w-3.5" /> : <Video className="h-3.5 w-3.5" />}
-                  <span>{jobDisplayModel(job.model)}</span>
+                  <span>{jobDisplayModel(job.model, job.displayModel)}</span>
                 </div>
               </button>
             ))}
@@ -515,7 +517,7 @@ export function GenerationWorkbench({
                     <div className="mt-4 flex flex-wrap gap-3 rounded-lg bg-black/20 px-4 py-3 text-sm text-slate-300">
                       <span className="inline-flex items-center gap-1">
                         {selected.kind === "IMAGE" ? <ImageIcon className="h-4 w-4 text-slate-400" /> : <Video className="h-4 w-4 text-slate-400" />}
-                        模型：{jobDisplayModel(selected.model)}
+                        模型：{jobDisplayModel(selected.model, selected.displayModel)}
                       </span>
                       <span className="inline-flex items-center gap-1"><Clock3 className="h-4 w-4 text-slate-400" />创建：{dateText(selected.createdAt)}</span>
                       <span className="inline-flex items-center gap-1"><CheckCircle2 className="h-4 w-4 text-slate-400" />完成：{dateText(selected.completedAt)}</span>

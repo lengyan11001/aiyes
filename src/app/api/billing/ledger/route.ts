@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonError } from "@/lib/http";
+import { publicGenerationModelLabel } from "@/lib/model-display";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 
@@ -10,6 +11,19 @@ export async function GET() {
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
     take: 100,
+    include: {
+      job: {
+        select: {
+          model: true,
+          params: true,
+        },
+      },
+    },
   });
-  return NextResponse.json({ ledgers });
+  return NextResponse.json({
+    ledgers: ledgers.map(({ job, ...ledger }) => ({
+      ...ledger,
+      model: job ? publicGenerationModelLabel(job.model, job.params) : ledger.model,
+    })),
+  });
 }

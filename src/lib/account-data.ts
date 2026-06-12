@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { ALLOWED_MODELS } from "@/lib/constants";
 import { createPlatformApiKey } from "@/lib/crypto";
+import { publicGenerationModelLabel } from "@/lib/model-display";
 
 export function ledgerName(type: string) {
   if (type === "CREDIT") return "充值";
@@ -27,12 +28,25 @@ export function menuUser(user: {
   };
 }
 
-export function getUserLedgers(userId: string) {
-  return prisma.usageLedger.findMany({
+export async function getUserLedgers(userId: string) {
+  const ledgers = await prisma.usageLedger.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },
     take: 120,
+    include: {
+      job: {
+        select: {
+          model: true,
+          params: true,
+        },
+      },
+    },
   });
+
+  return ledgers.map(({ job, ...ledger }) => ({
+    ...ledger,
+    displayModel: job ? publicGenerationModelLabel(job.model, job.params) : ledger.model,
+  }));
 }
 
 export function getUserApiKeys(userId: string) {

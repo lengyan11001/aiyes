@@ -47,7 +47,7 @@ export default async function LedgerPage() {
                     {row.amountCents > 0 ? "+" : ""}{formatPoints(row.amountCents)}
                   </td>
                   <td className="p-3">{formatPoints(row.balanceAfter)}</td>
-                  <td className="p-3 text-slate-300">{row.model || row.note || "-"}</td>
+                  <td className="p-3 text-slate-300">{row.displayModel || row.note || "-"}</td>
                   <td className="p-3 text-slate-400">{row.createdAt.toLocaleString("zh-CN")}</td>
                 </tr>
               ))}

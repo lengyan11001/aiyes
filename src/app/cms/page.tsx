@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Activity, Clock3, ReceiptText, UsersRound, WalletCards, Zap } from "lucide-react";
 import { CmsShell } from "@/components/cms-shell";
 import { cmsDate, getCmsStats, jobStatusText, orderStatusText } from "@/lib/cms";
+import { publicGenerationModelLabel } from "@/lib/model-display";
 import { prisma } from "@/lib/prisma";
 import { formatPoints, formatYuanFromFen } from "@/lib/units";
 
@@ -70,7 +71,7 @@ export default async function CmsDashboardPage() {
                 </div>
                 <p className="mt-2 line-clamp-1 text-slate-600">{job.prompt}</p>
                 <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
-                  <span>{job.model}</span>
+                  <span>{publicGenerationModelLabel(job.model, job.params)}</span>
                   <span>{formatPoints(job.chargedCents)}</span>
                 </div>
               </div>

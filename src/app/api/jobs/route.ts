@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { jsonError } from "@/lib/http";
 import { syncPendingGenerationJobs } from "@/lib/job-sync";
+import { publicGenerationModelLabel } from "@/lib/model-display";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 
@@ -16,6 +17,7 @@ export async function GET() {
       id: true,
       kind: true,
       model: true,
+      params: true,
       status: true,
       prompt: true,
       chargedCents: true,
@@ -26,5 +28,10 @@ export async function GET() {
       completedAt: true,
     },
   });
-  return NextResponse.json({ jobs });
+  return NextResponse.json({
+    jobs: jobs.map(({ params, ...job }) => ({
+      ...job,
+      displayModel: publicGenerationModelLabel(job.model, params),
+    })),
+  });
 }

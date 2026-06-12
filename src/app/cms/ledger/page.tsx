@@ -1,5 +1,6 @@
 import { CmsShell } from "@/components/cms-shell";
 import { cmsDate, ledgerTypeText } from "@/lib/cms";
+import { publicGenerationModelLabel } from "@/lib/model-display";
 import { prisma } from "@/lib/prisma";
 import { formatPoints } from "@/lib/units";
 
@@ -27,7 +28,10 @@ export default async function CmsLedgerPage({ searchParams }: { searchParams: Pr
     },
     orderBy: { createdAt: "desc" },
     take: 160,
-    include: { user: { select: { username: true } } },
+    include: {
+      user: { select: { username: true } },
+      job: { select: { model: true, params: true } },
+    },
   });
 
   return (
@@ -69,7 +73,7 @@ export default async function CmsLedgerPage({ searchParams }: { searchParams: Pr
                     {row.amountCents > 0 ? "+" : ""}{formatPoints(row.amountCents)}
                   </td>
                   <td className="p-3">{formatPoints(row.balanceAfter)}</td>
-                  <td className="p-3">{row.model || row.note || "-"}</td>
+                  <td className="p-3">{row.job ? publicGenerationModelLabel(row.job.model, row.job.params) : row.model || row.note || "-"}</td>
                   <td className="p-3 font-mono text-xs text-slate-500">{row.jobId || "-"}</td>
                   <td className="p-3 text-xs text-slate-500">{cmsDate(row.createdAt)}</td>
                 </tr>

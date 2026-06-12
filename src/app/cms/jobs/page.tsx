@@ -1,6 +1,7 @@
 import { CmsShell } from "@/components/cms-shell";
 import { cmsDate, jobStatusText } from "@/lib/cms";
 import { syncPendingGenerationJobs } from "@/lib/job-sync";
+import { publicGenerationModelLabel } from "@/lib/model-display";
 import { prisma } from "@/lib/prisma";
 import { formatPoints } from "@/lib/units";
 
@@ -79,7 +80,7 @@ export default async function CmsJobsPage({ searchParams }: { searchParams: Prom
                   </td>
                   <td className="p-3">
                     <p>{job.kind === "VIDEO" ? "视频" : "图片"}</p>
-                    <p className="mt-1 font-mono text-xs text-slate-500">{job.model}</p>
+                    <p className="mt-1 font-mono text-xs text-slate-500">{publicGenerationModelLabel(job.model, job.params)}</p>
                   </td>
                   <td className="max-w-md p-3">
                     <p className="line-clamp-2">{job.prompt}</p>

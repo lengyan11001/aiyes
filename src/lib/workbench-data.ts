@@ -1,6 +1,7 @@
 import { estimateGenerationPrice } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
 import { syncPendingGenerationJobs } from "@/lib/job-sync";
+import { publicGenerationModelLabel } from "@/lib/model-display";
 import type { MenuUser } from "@/components/user-menu";
 import type { WorkbenchJob } from "@/components/generation-workbench";
 
@@ -32,6 +33,7 @@ export async function getWorkbenchData(user: {
       id: true,
       kind: true,
       model: true,
+      params: true,
       status: true,
       prompt: true,
       result: true,
@@ -43,8 +45,9 @@ export async function getWorkbenchData(user: {
     },
   });
 
-  const initialJobs: WorkbenchJob[] = jobs.map((job) => ({
+  const initialJobs: WorkbenchJob[] = jobs.map(({ params, ...job }) => ({
     ...job,
+    displayModel: publicGenerationModelLabel(job.model, params),
     result: job.result,
     error: job.error,
     createdAt: job.createdAt.toISOString(),

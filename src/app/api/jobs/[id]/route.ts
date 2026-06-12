@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
 import { jsonError } from "@/lib/http";
 import { syncGenerationJob } from "@/lib/job-sync";
+import { publicGenerationModelLabel } from "@/lib/model-display";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
+
+function withDisplayModel<T extends { model: string; params?: unknown }>(job: T) {
+  return {
+    ...job,
+    displayModel: publicGenerationModelLabel(job.model, job.params),
+  };
+}
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
@@ -17,14 +25,14 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   if (job.upstreamTaskId && ["PENDING", "PROCESSING"].includes(job.status)) {
     try {
       const synced = await syncGenerationJob(job);
-      return NextResponse.json({ job: synced.job });
+      return NextResponse.json({ job: withDisplayModel(synced.job) });
     } catch (error) {
       return NextResponse.json({
-        job,
+        job: withDisplayModel(job),
         warning: error instanceof Error ? error.message : "同步任务状态失败。",
       });
     }
   }
 
-  return NextResponse.json({ job });
+  return NextResponse.json({ job: withDisplayModel(job) });
 }

@@ -1,6 +1,7 @@
 import { LedgerType, OrderStatus } from "@prisma/client";
 import { ALLOWED_MODELS, MODEL_META } from "@/lib/constants";
 import type { ApiKeyAuth } from "@/lib/api-auth";
+import { publicGenerationModelLabel } from "@/lib/model-display";
 import { prisma } from "@/lib/prisma";
 import { POINTS_PER_YUAN } from "@/lib/units";
 
@@ -169,6 +170,7 @@ export async function listOpcUsage(auth: ApiKeyAuth, query: ReturnType<typeof pa
         upstreamTaskId: true,
         kind: true,
         model: true,
+        params: true,
         status: true,
         prompt: true,
         chargedCents: true,
@@ -185,7 +187,7 @@ export async function listOpcUsage(auth: ApiKeyAuth, query: ReturnType<typeof pa
       order_no: job.id,
       upstream_task_id: job.upstreamTaskId,
       type: job.kind,
-      model: job.model,
+      model: publicGenerationModelLabel(job.model, job.params),
       status: job.status,
       prompt: job.prompt,
       token_consumed_points: job.chargedCents,
@@ -241,6 +243,14 @@ export async function listOpcLedger(auth: ApiKeyAuth, query: ReturnType<typeof p
       orderBy: { createdAt: "desc" },
       skip: query.skip,
       take: query.take,
+      include: {
+        job: {
+          select: {
+            model: true,
+            params: true,
+          },
+        },
+      },
     }),
   ]);
 
@@ -251,7 +261,7 @@ export async function listOpcLedger(auth: ApiKeyAuth, query: ReturnType<typeof p
       amount_points: ledger.amountCents,
       amount_yuan: pointsToYuan(Math.abs(ledger.amountCents)),
       balance_after_points: ledger.balanceAfter,
-      model: ledger.model,
+      model: ledger.job ? publicGenerationModelLabel(ledger.job.model, ledger.job.params) : ledger.model,
       job_id: ledger.jobId,
       api_key_id: ledger.apiKeyId,
       note: ledger.note,

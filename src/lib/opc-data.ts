@@ -1,7 +1,8 @@
 import { JobKind, OrderStatus, type ApiKey, type GenerationJob, type User } from "@prisma/client";
-import { isAllowedModel, MODEL_META } from "@/lib/constants";
+import { isAllowedModel } from "@/lib/constants";
 import { sha256 } from "@/lib/crypto";
 import { env } from "@/lib/env";
+import { publicGenerationModelLabel } from "@/lib/model-display";
 import { prisma } from "@/lib/prisma";
 import { pointsToYuan } from "@/lib/opc";
 import { normalizeVideoDuration } from "@/lib/pricing";
@@ -164,10 +165,6 @@ function dateRange(from?: Date, to?: Date) {
 
 function jsonObject(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
-}
-
-function modelName(model: string) {
-  return MODEL_META[model]?.label || MODEL_META[model]?.shortLabel || model;
 }
 
 function modelType(job: Pick<GenerationJob, "kind" | "model">) {
@@ -369,7 +366,7 @@ async function buildSubjectData(
         order_id: order.id,
       })),
       consume: consumeJobs.map((job) => ({
-        name: modelName(job.model),
+        name: publicGenerationModelLabel(job.model, job.params),
         type: modelType(job),
         result: jobResultText(job),
         cost: pointsToYuan(job.chargedCents),

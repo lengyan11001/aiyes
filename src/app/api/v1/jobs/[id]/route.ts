@@ -2,7 +2,15 @@ import { NextResponse } from "next/server";
 import { authenticateApiKey } from "@/lib/api-auth";
 import { jsonError } from "@/lib/http";
 import { syncGenerationJob } from "@/lib/job-sync";
+import { publicGenerationModelLabel } from "@/lib/model-display";
 import { prisma } from "@/lib/prisma";
+
+function withDisplayModel<T extends { model: string; params?: unknown }>(job: T) {
+  return {
+    ...job,
+    displayModel: publicGenerationModelLabel(job.model, job.params),
+  };
+}
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const auth = await authenticateApiKey(request);
@@ -18,11 +26,11 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   if (job.upstreamTaskId && ["PENDING", "PROCESSING"].includes(job.status)) {
     try {
       const synced = await syncGenerationJob(job);
-      return NextResponse.json({ job: synced.job });
+      return NextResponse.json({ job: withDisplayModel(synced.job) });
     } catch {
       // Return local state if upstream polling fails.
     }
   }
 
-  return NextResponse.json({ job });
+  return NextResponse.json({ job: withDisplayModel(job) });
 }

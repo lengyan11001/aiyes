@@ -5,6 +5,7 @@ import { createApizTask, waitApizTask } from "@/lib/apiz";
 import { applyUpstreamCharge, debitForJob, priceForModel, refundJobCharge } from "@/lib/billing";
 import { isAllowedModel, modelKind, upstreamModelId, type AllowedModel } from "@/lib/constants";
 import { clientIp, jsonError, readJsonBody } from "@/lib/http";
+import { publicGenerationModelLabel } from "@/lib/model-display";
 import { prisma } from "@/lib/prisma";
 import { buildProviderParams } from "@/lib/provider-params";
 import { consumeRateLimit } from "@/lib/rate-limit";
@@ -25,6 +26,13 @@ const schema = z.object({
   options: z.record(z.string(), z.unknown()).optional(),
   async: z.boolean().optional().default(true),
 });
+
+function withDisplayModel<T extends { model: string; params?: unknown }>(job: T) {
+  return {
+    ...job,
+    displayModel: publicGenerationModelLabel(job.model, job.params),
+  };
+}
 
 export async function POST(request: Request) {
   const user = await requireUser();
@@ -126,7 +134,7 @@ export async function POST(request: Request) {
     }
 
     const settled = await prisma.generationJob.findUnique({ where: { id: job.id } });
-    return NextResponse.json({ job: settled || updated });
+    return NextResponse.json({ job: withDisplayModel(settled || updated) });
   } catch (error) {
     const updated = await prisma.$transaction(async (tx) => {
       await refundJobCharge({ tx, jobId: job.id });
@@ -135,6 +143,6 @@ export async function POST(request: Request) {
         data: { status: "FAILED", error: error instanceof Error ? error.message : String(error), completedAt: new Date() },
       });
     });
-    return NextResponse.json({ job: updated, error: updated.error }, { status: 502 });
+    return NextResponse.json({ job: withDisplayModel(updated), error: updated.error }, { status: 502 });
   }
 }
