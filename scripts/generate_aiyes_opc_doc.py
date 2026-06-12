@@ -300,7 +300,7 @@ curl -X POST "$AIYES_BASE_URL/api/v1/videos/generations" \\
     "prompt": "生成一段商品展示短视频",
     "duration": 4,
     "ratio": "16:9",
-    "video_model": "fast",
+    "video_model": "standard_vip",
     "resolution": "720p",
     "async": true
   }'
@@ -344,7 +344,7 @@ async function createVideoTask() {
       prompt: "生成一段商品展示短视频",
       duration: 4,
       ratio: "16:9",
-      video_model: "fast",
+      video_model: "standard_vip",
       resolution: "720p",
       async: true
     })
@@ -432,7 +432,7 @@ Content-Type: application/json
     "prompt": "生成一段商品展示短视频",
     "duration": 4,
     "ratio": "16:9",
-    "video_model": "fast",
+    "video_model": "standard_vip",
     "resolution": "720p",
     "async": true
   }'""",

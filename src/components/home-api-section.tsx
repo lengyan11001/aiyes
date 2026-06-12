@@ -180,7 +180,7 @@ function modelListCurl(token: string) {
 }
 
 function priceCurl(token: string) {
-  return `curl "https://aiyes.vip/api/v1/pricing/estimate?model=seedance2&duration=10&video_model=fast_vip&resolution=720p&aspect_ratio=9:16" \\
+  return `curl "https://aiyes.vip/api/v1/pricing/estimate?model=seedance2&duration=10&video_model=standard_vip&resolution=720p&aspect_ratio=9:16" \\
   -H "Authorization: Bearer ${token}"`;
 }
 
@@ -208,7 +208,7 @@ function videoCurl(token: string) {
     "image_url": "https://example.com/first-frame.png",
     "aspect_ratio": "9:16",
     "duration": 10,
-    "video_model": "fast_vip",
+    "video_model": "standard_vip",
     "resolution": "720p",
     "async": true
   }'`;
