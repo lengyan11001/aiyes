@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   CheckCircle2,
   Clock3,
+  FileAudio,
+  FileVideo,
   Image as ImageIcon,
   Link2,
   Loader2,
@@ -41,6 +43,13 @@ export type WorkbenchJob = {
 type Filter = "ALL" | "COMPLETED" | "PROCESSING" | "FAILED";
 type Mode = "IMAGE" | "VIDEO";
 type SeedanceFunctionMode = "omini" | "first_last_frame";
+type ReferenceFile = {
+  id: string;
+  name: string;
+  url: string;
+  kind: "image" | "video" | "audio";
+  size: number;
+};
 
 const statusText: Record<JobStatus, string> = {
   PENDING: "排队中",
@@ -136,6 +145,21 @@ function urlsFromText(value: string) {
 
 function uniqueUrls(values: string[], max: number) {
   return Array.from(new Set(values.filter(Boolean))).slice(0, max);
+}
+
+function fileNameFromUrl(url: string, fallback: string) {
+  try {
+    const pathname = new URL(url).pathname;
+    return decodeURIComponent(pathname.split("/").filter(Boolean).pop() || fallback);
+  } catch {
+    return fallback;
+  }
+}
+
+function formatFileSize(size: number) {
+  if (!Number.isFinite(size) || size <= 0) return "";
+  if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))}KB`;
+  return `${(size / 1024 / 1024).toFixed(size >= 10 * 1024 * 1024 ? 0 : 1)}MB`;
 }
 
 function ModelPicker({
@@ -252,6 +276,34 @@ function UrlTextarea({
   );
 }
 
+function ReferenceChip({ file, onRemove }: { file: ReferenceFile; onRemove: () => void }) {
+  const Icon = file.kind === "image" ? ImageIcon : file.kind === "video" ? FileVideo : FileAudio;
+  const typeLabel = file.kind === "image" ? "图片" : file.kind === "video" ? "视频" : "音频";
+
+  return (
+    <div className="group flex h-11 max-w-[220px] items-center gap-2 rounded-md border border-white/10 bg-slate-950/80 px-2.5">
+      <span className="flex h-7 w-7 flex-none items-center justify-center rounded bg-white/10 text-slate-300">
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-xs font-medium text-slate-100">{file.name}</span>
+        <span className="block truncate text-[10px] uppercase tracking-wide text-slate-500">
+          {typeLabel}
+          {formatFileSize(file.size) ? ` · ${formatFileSize(file.size)}` : ""}
+        </span>
+      </span>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="flex h-5 w-5 flex-none items-center justify-center rounded-full bg-white/10 text-slate-400 hover:bg-rose-400/20 hover:text-rose-100"
+        title="移除素材"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </div>
+  );
+}
+
 export function GenerationWorkbench({
   initialJobs,
   estimatedPrices,
@@ -274,6 +326,7 @@ export function GenerationWorkbench({
   const [audioFilesText, setAudioFilesText] = useState("");
   const [functionMode, setFunctionMode] = useState<SeedanceFunctionMode>("omini");
   const [seed, setSeed] = useState("");
+  const [referenceFiles, setReferenceFiles] = useState<ReferenceFile[]>([]);
   const [showImageUrl, setShowImageUrl] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [aspectRatio, setAspectRatio] = useState("16:9");
@@ -300,11 +353,18 @@ export function GenerationWorkbench({
   const selected = jobs.find((job) => job.id === selectedId) || visibleJobs[0] || jobs[0];
   const selectedMedia = selected ? findMediaUrl(selected.result, selected.kind) : null;
   const currentModel = mode === "IMAGE" ? imageModel : videoBaseModel;
+  const uploadedImageUrls = referenceFiles.filter((file) => file.kind === "image").map((file) => file.url);
+  const uploadedVideoUrls = referenceFiles.filter((file) => file.kind === "video").map((file) => file.url);
+  const uploadedAudioUrls = referenceFiles.filter((file) => file.kind === "audio").map((file) => file.url);
+  const seedanceImageUrls = uniqueUrls([...uploadedImageUrls, ...urlsFromText(imageFilesText)], 9);
+  const seedanceVideoUrls = uniqueUrls([...uploadedVideoUrls, ...urlsFromText(videoFilesText)], 3);
+  const seedanceAudioUrls = uniqueUrls([...uploadedAudioUrls, ...urlsFromText(audioFilesText)], 3);
+  const singleImageReferenceUrl = imageUrl || uploadedImageUrls[0] || "";
   const referenceImageUrls = uniqueUrls(
     functionMode === "omini" && currentModel === "seedance2" && mode === "VIDEO"
-      ? urlsFromText(imageFilesText)
-      : imageUrl
-        ? [imageUrl]
+      ? seedanceImageUrls
+      : singleImageReferenceUrl
+        ? [singleImageReferenceUrl]
         : [],
     9,
   );
@@ -367,23 +427,38 @@ export function GenerationWorkbench({
   }
 
   async function uploadReferenceImage(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(event.target.files ?? []);
+    if (!files.length) return;
     setUploadingReference(true);
     setMessage("");
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/uploads/reference-image", {
-        method: "POST",
-        body: formData,
+      const uploaded: ReferenceFile[] = [];
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch("/api/uploads/reference-image", {
+          method: "POST",
+          body: formData,
+        });
+        const payload = await res.json();
+        if (!res.ok) throw new Error(payload?.error?.message || "参考素材上传失败");
+        uploaded.push({
+          id: `${payload.url}-${file.name}`,
+          name: payload.name || file.name || fileNameFromUrl(payload.url, "参考素材"),
+          url: payload.url,
+          kind: payload.kind,
+          size: payload.size || file.size,
+        });
+      }
+      setReferenceFiles((current) => {
+        const next = [...current, ...uploaded];
+        const images = next.filter((file) => file.kind === "image").slice(0, 9);
+        const videos = next.filter((file) => file.kind === "video").slice(0, 3);
+        const audios = next.filter((file) => file.kind === "audio").slice(0, 3);
+        return [...images, ...videos, ...audios];
       });
-      const payload = await res.json();
-      if (!res.ok) throw new Error(payload?.error?.message || "参考图上传失败");
-      setImageUrl(payload.url);
-      setImageFilesText((current) => uniqueUrls([payload.url, ...urlsFromText(current)], 9).join("\n"));
-      setShowImageUrl(true);
-      setMessage("参考图已上传。");
+      setShowImageUrl(false);
+      setMessage(`${uploaded.length} 个参考素材已上传。`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error));
     } finally {
@@ -437,9 +512,6 @@ export function GenerationWorkbench({
     setLoading(true);
     setMessage("");
     try {
-      const seedanceImageFiles = uniqueUrls(urlsFromText(imageFilesText), 9);
-      const seedanceVideoFiles = uniqueUrls(urlsFromText(videoFilesText), 3);
-      const seedanceAudioFiles = uniqueUrls(urlsFromText(audioFilesText), 3);
       const seedanceSeed = seed.trim();
       const isSeedance = currentModel === "seedance2";
       const body =
@@ -448,7 +520,7 @@ export function GenerationWorkbench({
               kind: "IMAGE",
               model: currentModel,
               prompt,
-              image_url: imageUrl || undefined,
+              image_url: singleImageReferenceUrl || undefined,
               size: imageSize,
               quality: imageQuality,
               aspect_ratio: aspectRatio,
@@ -458,12 +530,12 @@ export function GenerationWorkbench({
               kind: "VIDEO",
               model: currentModel,
               prompt,
-              image_url: isSeedance && functionMode === "omini" ? undefined : imageUrl || undefined,
+              image_url: isSeedance && functionMode === "omini" ? undefined : singleImageReferenceUrl || undefined,
               end_image_url: isSeedance && functionMode === "first_last_frame" ? endImageUrl || undefined : undefined,
-              image_files: isSeedance && functionMode === "omini" && seedanceImageFiles.length ? seedanceImageFiles : undefined,
+              image_files: isSeedance && functionMode === "omini" && seedanceImageUrls.length ? seedanceImageUrls : undefined,
               video_url: isSeedance && videoUrl ? videoUrl : undefined,
-              video_files: isSeedance && seedanceVideoFiles.length ? seedanceVideoFiles : undefined,
-              audio_files: isSeedance && seedanceAudioFiles.length ? seedanceAudioFiles : undefined,
+              video_files: isSeedance && seedanceVideoUrls.length ? seedanceVideoUrls : undefined,
+              audio_files: isSeedance && seedanceAudioUrls.length ? seedanceAudioUrls : undefined,
               functionMode: isSeedance ? functionMode : undefined,
               seed: isSeedance && seedanceSeed ? seedanceSeed : undefined,
               aspect_ratio: aspectRatio,
@@ -645,7 +717,7 @@ export function GenerationWorkbench({
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingReference}
                   className="flex h-16 items-center justify-center rounded-lg border border-dashed border-white/15 text-slate-400 hover:border-white/40 hover:text-white disabled:cursor-wait disabled:opacity-60"
-                  title="选择本地参考图"
+                  title="选择本地参考素材"
                 >
                   {uploadingReference ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-6 w-6" />}
                 </button>
@@ -653,15 +725,29 @@ export function GenerationWorkbench({
                   ref={fileInputRef}
                   className="sr-only"
                   type="file"
-                  accept="image/png,image/jpeg,image/webp"
+                  multiple
+                  accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,video/mp4,video/quicktime,video/x-msvideo,video/x-matroska,video/webm,video/x-flv,audio/mpeg,audio/mp3,audio/wav,audio/x-wav"
                   onChange={uploadReferenceImage}
                 />
-                <textarea
-                  className="aiyes-dark-input h-20 resize-none rounded-lg border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-white/40"
-                  placeholder={mode === "VIDEO" ? "描述你想要生成的视频内容..." : "描述你想要生成的图片内容..."}
-                  value={prompt}
-                  onChange={(event) => setPrompt(event.target.value)}
-                />
+                <div className="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-3 focus-within:border-white/40">
+                  {referenceFiles.length > 0 && (
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      {referenceFiles.map((file) => (
+                        <ReferenceChip
+                          key={file.id}
+                          file={file}
+                          onRemove={() => setReferenceFiles((current) => current.filter((item) => item.id !== file.id))}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  <textarea
+                    className="aiyes-dark-input min-h-14 w-full resize-none bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
+                    placeholder={mode === "VIDEO" ? "描述你想要生成的视频内容..." : "描述你想要生成的图片内容..."}
+                    value={prompt}
+                    onChange={(event) => setPrompt(event.target.value)}
+                  />
+                </div>
               </div>
               <div className="mt-3 flex items-start justify-between gap-3">
                 <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
@@ -714,7 +800,7 @@ export function GenerationWorkbench({
                     type="button"
                     onClick={() => setShowImageUrl((value) => !value)}
                     className="inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-white/10 px-3 text-sm text-slate-300 hover:bg-white/10 hover:text-white"
-                    title="粘贴参考图 URL"
+                    title="粘贴参考素材 URL"
                   >
                     <Link2 className="h-4 w-4" />
                     URL
@@ -810,17 +896,19 @@ export function GenerationWorkbench({
                   )}
                 </div>
               )}
-              {referenceImageUrls.length > 0 && (
+              {referenceImageUrls.length > 0 && referenceFiles.length === 0 && (
                 <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.04] p-3">
                   <p className="text-sm font-medium text-slate-200">参考图已选择</p>
-                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <div className="mt-3 flex flex-wrap gap-2">
                     {referenceImageUrls.map((url, index) => (
-                      <div key={url} className="flex min-w-0 items-center gap-3 rounded-md bg-black/20 p-2">
-                        <img src={url} alt="" className="h-14 w-14 rounded-md border border-white/10 object-cover" />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs text-slate-400">图片 {index + 1}</p>
-                          <p className="mt-1 truncate text-xs text-slate-300">{url}</p>
-                        </div>
+                      <div key={url} className="flex h-11 max-w-[220px] items-center gap-2 rounded-md border border-white/10 bg-black/20 px-2.5">
+                        <span className="flex h-7 w-7 flex-none items-center justify-center rounded bg-white/10 text-slate-300">
+                          <ImageIcon className="h-4 w-4" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-xs font-medium text-slate-100">参考图 {index + 1}</span>
+                          <span className="block text-[10px] text-slate-500">URL</span>
+                        </span>
                         <button
                           type="button"
                           onClick={() => {
@@ -830,10 +918,10 @@ export function GenerationWorkbench({
                               setImageUrl("");
                             }
                           }}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-white/10 text-slate-400 hover:border-rose-300/40 hover:text-rose-200"
+                          className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/10 text-slate-400 hover:bg-rose-400/20 hover:text-rose-100"
                           title="移除参考图"
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3 w-3" />
                         </button>
                       </div>
                     ))}
