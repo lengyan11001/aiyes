@@ -20,6 +20,7 @@ import { SiteHeader } from "@/components/site-header";
 import type { MenuUser } from "@/components/user-menu";
 import { defaultSeedanceResolution, seedanceResolutionOptions, VIDEO_MODEL_OPTIONS } from "@/lib/pricing";
 import { IMAGE_MODELS, MODEL_META, VIDEO_MODELS, type ModelMeta } from "@/lib/constants";
+import { hasReferenceSupport, referenceAccept, referenceCapabilitiesForModel, referenceLimit } from "@/lib/reference-capabilities";
 import { formatPoints } from "@/lib/units";
 
 type JobStatus = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED" | "CANCELED";
@@ -160,6 +161,15 @@ function formatFileSize(size: number) {
   if (!Number.isFinite(size) || size <= 0) return "";
   if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))}KB`;
   return `${(size / 1024 / 1024).toFixed(size >= 10 * 1024 * 1024 ? 0 : 1)}MB`;
+}
+
+function trimReferenceFiles(files: ReferenceFile[], model: string) {
+  const capability = referenceCapabilitiesForModel(model);
+  return files.filter((file, index, current) => {
+    const limit = referenceLimit(capability, file.kind);
+    if (!limit) return false;
+    return current.filter((item) => item.kind === file.kind).findIndex((item) => item.id === file.id) < limit;
+  });
 }
 
 function ModelPicker({
@@ -353,6 +363,9 @@ export function GenerationWorkbench({
   const selected = jobs.find((job) => job.id === selectedId) || visibleJobs[0] || jobs[0];
   const selectedMedia = selected ? findMediaUrl(selected.result, selected.kind) : null;
   const currentModel = mode === "IMAGE" ? imageModel : videoBaseModel;
+  const referenceCapability = referenceCapabilitiesForModel(currentModel);
+  const supportsReferences = hasReferenceSupport(referenceCapability);
+  const referenceAcceptValue = referenceAccept(referenceCapability);
   const uploadedImageUrls = referenceFiles.filter((file) => file.kind === "image").map((file) => file.url);
   const uploadedVideoUrls = referenceFiles.filter((file) => file.kind === "video").map((file) => file.url);
   const uploadedAudioUrls = referenceFiles.filter((file) => file.kind === "audio").map((file) => file.url);
@@ -382,6 +395,7 @@ export function GenerationWorkbench({
     const meta = MODEL_META[model as keyof typeof MODEL_META] as ModelMeta;
     if (!meta) return;
     setImageModel(model);
+    setReferenceFiles((current) => trimReferenceFiles(current, model));
     setImageSize(firstValue(meta.parameters?.imageSize, "1K"));
     setImageQuality(firstValue(meta.parameters?.quality, "medium"));
     setAspectRatio(firstValue(meta.parameters?.aspectRatio, "1:1"));
@@ -391,6 +405,7 @@ export function GenerationWorkbench({
     const meta = MODEL_META[model as keyof typeof MODEL_META] as ModelMeta;
     if (!meta) return;
     setVideoBaseModel(model);
+    setReferenceFiles((current) => trimReferenceFiles(current, model));
     setDuration(firstValue(meta.parameters?.duration, model === "seedance2" ? "4" : "5"));
     setVideoResolution(model === "seedance2" ? defaultSeedanceResolution(videoModel) : firstValue(meta.parameters?.resolution, "720p"));
     setAspectRatio(firstValue(meta.parameters?.aspectRatio, "16:9"));
@@ -451,14 +466,12 @@ export function GenerationWorkbench({
         });
       }
       setReferenceFiles((current) => {
-        const next = [...current, ...uploaded];
-        const images = next.filter((file) => file.kind === "image").slice(0, 9);
-        const videos = next.filter((file) => file.kind === "video").slice(0, 3);
-        const audios = next.filter((file) => file.kind === "audio").slice(0, 3);
-        return [...images, ...videos, ...audios];
+        const next = trimReferenceFiles([...current, ...uploaded], currentModel);
+        return next;
       });
       setShowImageUrl(false);
-      setMessage(`${uploaded.length} 个参考素材已上传。`);
+      const accepted = trimReferenceFiles(uploaded, currentModel).length;
+      setMessage(accepted === uploaded.length ? `${uploaded.length} 个参考素材已上传。` : `已按当前模型能力保留 ${accepted} 个参考素材。`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error));
     } finally {
@@ -520,7 +533,8 @@ export function GenerationWorkbench({
               kind: "IMAGE",
               model: currentModel,
               prompt,
-              image_url: singleImageReferenceUrl || undefined,
+              image_url: referenceCapability.image ? singleImageReferenceUrl || undefined : undefined,
+              image_files: referenceCapability.image && (referenceCapability.image.max ?? 0) > 1 && seedanceImageUrls.length ? seedanceImageUrls : undefined,
               size: imageSize,
               quality: imageQuality,
               aspect_ratio: aspectRatio,
@@ -530,7 +544,7 @@ export function GenerationWorkbench({
               kind: "VIDEO",
               model: currentModel,
               prompt,
-              image_url: isSeedance && functionMode === "omini" ? undefined : singleImageReferenceUrl || undefined,
+              image_url: referenceCapability.image && isSeedance && functionMode === "omini" ? undefined : referenceCapability.image ? singleImageReferenceUrl || undefined : undefined,
               end_image_url: isSeedance && functionMode === "first_last_frame" ? endImageUrl || undefined : undefined,
               image_files: isSeedance && functionMode === "omini" && seedanceImageUrls.length ? seedanceImageUrls : undefined,
               video_url: isSeedance && videoUrl ? videoUrl : undefined,
@@ -715,9 +729,9 @@ export function GenerationWorkbench({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingReference}
+                  disabled={uploadingReference || !supportsReferences}
                   className="flex h-16 items-center justify-center rounded-lg border border-dashed border-white/15 text-slate-400 hover:border-white/40 hover:text-white disabled:cursor-wait disabled:opacity-60"
-                  title="选择本地参考素材"
+                  title={supportsReferences ? "选择本地参考素材" : "当前模型不需要参考素材"}
                 >
                   {uploadingReference ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-6 w-6" />}
                 </button>
@@ -726,7 +740,7 @@ export function GenerationWorkbench({
                   className="sr-only"
                   type="file"
                   multiple
-                  accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,video/mp4,video/quicktime,video/x-msvideo,video/x-matroska,video/webm,video/x-flv,audio/mpeg,audio/mp3,audio/wav,audio/x-wav"
+                  accept={referenceAcceptValue}
                   onChange={uploadReferenceImage}
                 />
                 <div className="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-3 focus-within:border-white/40">
@@ -753,7 +767,12 @@ export function GenerationWorkbench({
                 <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setMode(mode === "VIDEO" ? "IMAGE" : "VIDEO")}
+                    onClick={() => {
+                      const nextMode = mode === "VIDEO" ? "IMAGE" : "VIDEO";
+                      const nextModel = nextMode === "IMAGE" ? imageModel : videoBaseModel;
+                      setMode(nextMode);
+                      setReferenceFiles((current) => trimReferenceFiles(current, nextModel));
+                    }}
                     className="inline-flex items-center gap-2 rounded-md border border-white bg-white px-3 py-2 text-sm font-medium text-slate-950"
                   >
                     {mode === "VIDEO" ? <Video className="h-4 w-4" /> : <ImageIcon className="h-4 w-4" />}
@@ -796,15 +815,17 @@ export function GenerationWorkbench({
                       <OptionSelect value={duration} options={currentParams.duration} onChange={setDuration} className={selectClass} />
                     </>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => setShowImageUrl((value) => !value)}
-                    className="inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-white/10 px-3 text-sm text-slate-300 hover:bg-white/10 hover:text-white"
-                    title="粘贴参考素材 URL"
-                  >
-                    <Link2 className="h-4 w-4" />
-                    URL
-                  </button>
+                  {supportsReferences && (
+                    <button
+                      type="button"
+                      onClick={() => setShowImageUrl((value) => !value)}
+                      className="inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-white/10 px-3 text-sm text-slate-300 hover:bg-white/10 hover:text-white"
+                      title="粘贴参考素材 URL"
+                    >
+                      <Link2 className="h-4 w-4" />
+                      URL
+                    </button>
+                  )}
                 </div>
                 <div className="flex shrink-0 items-center gap-3 whitespace-nowrap">
                   <span className="shrink-0 text-xs text-slate-400">
@@ -822,7 +843,7 @@ export function GenerationWorkbench({
                   </button>
                 </div>
               </div>
-              {showImageUrl && (
+              {showImageUrl && supportsReferences && (
                 <div className="mt-3 grid gap-3 rounded-lg border border-white/10 bg-black/20 p-3">
                   {mode === "VIDEO" && currentModel === "seedance2" && (
                     <div className="flex flex-wrap items-center gap-2">

@@ -17,6 +17,7 @@ const schema = z.object({
   quality: z.string().optional(),
   aspect_ratio: z.string().optional(),
   image_url: z.string().url().optional(),
+  image_files: z.array(z.string().url()).min(1).max(9).optional(),
   response_format: z.enum(["url", "json"]).optional(),
   async: z.boolean().optional(),
   options: z.record(z.string(), z.unknown()).optional(),
