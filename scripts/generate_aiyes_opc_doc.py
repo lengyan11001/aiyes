@@ -297,11 +297,23 @@ curl -X POST "$AIYES_BASE_URL/api/v1/videos/generations" \\
   -H "Content-Type: application/json" \\
   -d '{
     "model": "seedance2",
-    "prompt": "生成一段商品展示短视频",
+    "prompt": "【@图片1】跟随【@音频1】节奏生成商品展示短视频",
+    "image_files": [
+      "https://example.com/product.png",
+      "https://example.com/style-reference.png"
+    ],
+    "video_files": [
+      "https://example.com/reference.mp4"
+    ],
+    "audio_files": [
+      "https://example.com/music.mp3"
+    ],
     "duration": 4,
     "ratio": "16:9",
     "video_model": "standard_vip",
     "resolution": "720p",
+    "functionMode": "omini",
+    "seed": 123456,
     "async": true
   }'
 
@@ -341,11 +353,23 @@ async function createVideoTask() {
     method: "POST",
     body: JSON.stringify({
       model: "seedance2",
-      prompt: "生成一段商品展示短视频",
+      prompt: "【@图片1】跟随【@音频1】节奏生成商品展示短视频",
+      image_files: [
+        "https://example.com/product.png",
+        "https://example.com/style-reference.png"
+      ],
+      video_files: [
+        "https://example.com/reference.mp4"
+      ],
+      audio_files: [
+        "https://example.com/music.mp3"
+      ],
       duration: 4,
       ratio: "16:9",
       video_model: "standard_vip",
       resolution: "720p",
+      functionMode: "omini",
+      seed: 123456,
       async: true
     })
   });
@@ -429,11 +453,23 @@ Content-Type: application/json
   -H "Content-Type: application/json" \\
   -d '{
     "model": "seedance2",
-    "prompt": "生成一段商品展示短视频",
+    "prompt": "【@图片1】跟随【@音频1】节奏生成商品展示短视频",
+    "image_files": [
+      "https://example.com/product.png",
+      "https://example.com/style-reference.png"
+    ],
+    "video_files": [
+      "https://example.com/reference.mp4"
+    ],
+    "audio_files": [
+      "https://example.com/music.mp3"
+    ],
     "duration": 4,
     "ratio": "16:9",
     "video_model": "standard_vip",
     "resolution": "720p",
+    "functionMode": "omini",
+    "seed": 123456,
     "async": true
   }'""",
     )
@@ -443,7 +479,14 @@ Content-Type: application/json
         [
             ["model", "固定使用 seedance2。"],
             ["prompt", "生成内容描述。"],
-            ["image_url", "可选，参考图 URL。"],
+            ["image_url", "可选，首尾帧模式下的首帧图片 URL；也可作为单张参考图使用。"],
+            ["end_image_url", "可选，首尾帧模式下的尾帧图片 URL，需搭配 image_url。"],
+            ["image_files", "可选，参考图片 URL 数组，最多 9 张。"],
+            ["video_url", "可选，单个参考视频 URL。"],
+            ["video_files", "可选，参考视频 URL 数组，最多 3 个。"],
+            ["audio_files", "可选，参考音频 URL 数组，最多 3 个，需搭配图片或视频。"],
+            ["functionMode", "可选，omini 或 first_last_frame，默认 omini。"],
+            ["seed", "可选，整数随机种子。"],
             ["duration", "视频秒数。"],
             ["ratio / aspect_ratio", "画面比例，例如 16:9、9:16、1:1。"],
             ["video_model", "生成模式：fast、standard、fast_vip、standard_vip。"],

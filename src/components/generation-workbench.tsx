@@ -40,6 +40,7 @@ export type WorkbenchJob = {
 
 type Filter = "ALL" | "COMPLETED" | "PROCESSING" | "FAILED";
 type Mode = "IMAGE" | "VIDEO";
+type SeedanceFunctionMode = "omini" | "first_last_frame";
 
 const statusText: Record<JobStatus, string> = {
   PENDING: "排队中",
@@ -124,6 +125,17 @@ function jobDisplayModel(model: string, displayModel?: string) {
 
 function ensureOption(value: string, options?: readonly { value: string }[], fallback = "") {
   return options?.some((option) => option.value === value) ? value : firstValue(options, fallback);
+}
+
+function urlsFromText(value: string) {
+  return value
+    .split(/[\n,，\s]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function uniqueUrls(values: string[], max: number) {
+  return Array.from(new Set(values.filter(Boolean))).slice(0, max);
 }
 
 function ModelPicker({
@@ -216,6 +228,30 @@ function OptionSelect({
   );
 }
 
+function UrlTextarea({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <label className="grid gap-1.5 text-xs text-slate-400">
+      <span>{label}</span>
+      <textarea
+        className="aiyes-dark-input h-24 resize-none rounded-md border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500 focus:border-white/40"
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </label>
+  );
+}
+
 export function GenerationWorkbench({
   initialJobs,
   estimatedPrices,
@@ -231,6 +267,13 @@ export function GenerationWorkbench({
   const [mode, setMode] = useState<Mode>("VIDEO");
   const [prompt, setPrompt] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [endImageUrl, setEndImageUrl] = useState("");
+  const [imageFilesText, setImageFilesText] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
+  const [videoFilesText, setVideoFilesText] = useState("");
+  const [audioFilesText, setAudioFilesText] = useState("");
+  const [functionMode, setFunctionMode] = useState<SeedanceFunctionMode>("omini");
+  const [seed, setSeed] = useState("");
   const [showImageUrl, setShowImageUrl] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [aspectRatio, setAspectRatio] = useState("16:9");
@@ -257,6 +300,14 @@ export function GenerationWorkbench({
   const selected = jobs.find((job) => job.id === selectedId) || visibleJobs[0] || jobs[0];
   const selectedMedia = selected ? findMediaUrl(selected.result, selected.kind) : null;
   const currentModel = mode === "IMAGE" ? imageModel : videoBaseModel;
+  const referenceImageUrls = uniqueUrls(
+    functionMode === "omini" && currentModel === "seedance2" && mode === "VIDEO"
+      ? urlsFromText(imageFilesText)
+      : imageUrl
+        ? [imageUrl]
+        : [],
+    9,
+  );
   const currentModelMeta = MODEL_META[currentModel as keyof typeof MODEL_META] as ModelMeta;
   const currentParams = currentModelMeta.parameters ?? {};
   const videoResolutionOptions =
@@ -330,6 +381,7 @@ export function GenerationWorkbench({
       const payload = await res.json();
       if (!res.ok) throw new Error(payload?.error?.message || "参考图上传失败");
       setImageUrl(payload.url);
+      setImageFilesText((current) => uniqueUrls([payload.url, ...urlsFromText(current)], 9).join("\n"));
       setShowImageUrl(true);
       setMessage("参考图已上传。");
     } catch (error) {
@@ -385,6 +437,11 @@ export function GenerationWorkbench({
     setLoading(true);
     setMessage("");
     try {
+      const seedanceImageFiles = uniqueUrls(urlsFromText(imageFilesText), 9);
+      const seedanceVideoFiles = uniqueUrls(urlsFromText(videoFilesText), 3);
+      const seedanceAudioFiles = uniqueUrls(urlsFromText(audioFilesText), 3);
+      const seedanceSeed = seed.trim();
+      const isSeedance = currentModel === "seedance2";
       const body =
         mode === "IMAGE"
           ? {
@@ -401,11 +458,18 @@ export function GenerationWorkbench({
               kind: "VIDEO",
               model: currentModel,
               prompt,
-              image_url: imageUrl || undefined,
+              image_url: isSeedance && functionMode === "omini" ? undefined : imageUrl || undefined,
+              end_image_url: isSeedance && functionMode === "first_last_frame" ? endImageUrl || undefined : undefined,
+              image_files: isSeedance && functionMode === "omini" && seedanceImageFiles.length ? seedanceImageFiles : undefined,
+              video_url: isSeedance && videoUrl ? videoUrl : undefined,
+              video_files: isSeedance && seedanceVideoFiles.length ? seedanceVideoFiles : undefined,
+              audio_files: isSeedance && seedanceAudioFiles.length ? seedanceAudioFiles : undefined,
+              functionMode: isSeedance ? functionMode : undefined,
+              seed: isSeedance && seedanceSeed ? seedanceSeed : undefined,
               aspect_ratio: aspectRatio,
               ratio: aspectRatio,
               duration,
-              video_model: currentModel === "seedance2" ? videoModel : undefined,
+              video_model: isSeedance ? videoModel : undefined,
               resolution: videoResolution,
               async: true,
             };
@@ -673,29 +737,107 @@ export function GenerationWorkbench({
                 </div>
               </div>
               {showImageUrl && (
-                <input
-                  className="mt-3 h-10 w-full rounded-md border border-white/10 bg-slate-950 px-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-white/40"
-                  type="url"
-                  value={imageUrl}
-                  placeholder="参考图 URL，可选"
-                  onChange={(event) => setImageUrl(event.target.value)}
-                />
+                <div className="mt-3 grid gap-3 rounded-lg border border-white/10 bg-black/20 p-3">
+                  {mode === "VIDEO" && currentModel === "seedance2" && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="text-xs text-slate-400">参考模式</label>
+                      <select
+                        value={functionMode}
+                        onChange={(event) => setFunctionMode(event.target.value as SeedanceFunctionMode)}
+                        className={selectClass}
+                      >
+                        <option value="omini">多素材参考</option>
+                        <option value="first_last_frame">首尾帧</option>
+                      </select>
+                      <input
+                        className="h-10 w-40 rounded-md border border-white/10 bg-slate-950 px-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-white/40"
+                        value={seed}
+                        inputMode="numeric"
+                        placeholder="seed，可选"
+                        onChange={(event) => setSeed(event.target.value.replace(/[^\d-]/g, ""))}
+                      />
+                    </div>
+                  )}
+                  {mode === "VIDEO" && currentModel === "seedance2" && functionMode === "omini" ? (
+                    <div className="grid gap-3 lg:grid-cols-3">
+                      <UrlTextarea
+                        label="参考图片 URL"
+                        value={imageFilesText}
+                        onChange={setImageFilesText}
+                        placeholder="一行一个，最多 9 张"
+                      />
+                      <UrlTextarea
+                        label="参考视频 URL"
+                        value={videoFilesText}
+                        onChange={setVideoFilesText}
+                        placeholder="一行一个，最多 3 个"
+                      />
+                      <UrlTextarea
+                        label="参考音频 URL"
+                        value={audioFilesText}
+                        onChange={setAudioFilesText}
+                        placeholder="一行一个，最多 3 个"
+                      />
+                    </div>
+                  ) : (
+                    <div className={mode === "VIDEO" && currentModel === "seedance2" ? "grid gap-3 md:grid-cols-2" : ""}>
+                      <input
+                        className="h-10 w-full rounded-md border border-white/10 bg-slate-950 px-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-white/40"
+                        type="url"
+                        value={imageUrl}
+                        placeholder={mode === "VIDEO" && currentModel === "seedance2" ? "首帧图片 URL" : "参考图 URL，可选"}
+                        onChange={(event) => setImageUrl(event.target.value)}
+                      />
+                      {mode === "VIDEO" && currentModel === "seedance2" && (
+                        <input
+                          className="h-10 w-full rounded-md border border-white/10 bg-slate-950 px-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-white/40"
+                          type="url"
+                          value={endImageUrl}
+                          placeholder="尾帧图片 URL，可选"
+                          onChange={(event) => setEndImageUrl(event.target.value)}
+                        />
+                      )}
+                    </div>
+                  )}
+                  {mode === "VIDEO" && currentModel === "seedance2" && (
+                    <input
+                      className="h-10 w-full rounded-md border border-white/10 bg-slate-950 px-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-white/40"
+                      type="url"
+                      value={videoUrl}
+                      placeholder="单个参考视频 video_url，可选；多视频请填参考视频 URL"
+                      onChange={(event) => setVideoUrl(event.target.value)}
+                    />
+                  )}
+                </div>
               )}
-              {imageUrl && (
-                <div className="mt-3 flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.04] p-3">
-                  <img src={imageUrl} alt="参考图" className="h-16 w-16 rounded-md border border-white/10 object-cover" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-slate-200">参考图已选择</p>
-                    <p className="mt-1 truncate text-xs text-slate-400">{imageUrl}</p>
+              {referenceImageUrls.length > 0 && (
+                <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.04] p-3">
+                  <p className="text-sm font-medium text-slate-200">参考图已选择</p>
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    {referenceImageUrls.map((url, index) => (
+                      <div key={url} className="flex min-w-0 items-center gap-3 rounded-md bg-black/20 p-2">
+                        <img src={url} alt="" className="h-14 w-14 rounded-md border border-white/10 object-cover" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs text-slate-400">图片 {index + 1}</p>
+                          <p className="mt-1 truncate text-xs text-slate-300">{url}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (functionMode === "omini" && currentModel === "seedance2" && mode === "VIDEO") {
+                              setImageFilesText((current) => urlsFromText(current).filter((item) => item !== url).join("\n"));
+                            } else {
+                              setImageUrl("");
+                            }
+                          }}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-white/10 text-slate-400 hover:border-rose-300/40 hover:text-rose-200"
+                          title="移除参考图"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setImageUrl("")}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-white/10 text-slate-400 hover:border-rose-300/40 hover:text-rose-200"
-                    title="移除参考图"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
                 </div>
               )}
               {message && <p className="mt-2 text-sm text-slate-300">{message}</p>}

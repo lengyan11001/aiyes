@@ -34,7 +34,7 @@ const modelRows = [
   {
     id: "seedance2",
     required: "model, prompt",
-    params: "duration: 4-15 的整数；aspect_ratio: 16:9/21:9/9:16/1:1/4:3/3:4；video_model: fast/standard/fast_vip/standard_vip；resolution: fast 和 standard 固定 720p，fast_vip 可传 480p/720p，standard_vip 可传 480p/720p/1080p",
+    params: "duration: 4-15 的整数；aspect_ratio: 16:9/21:9/9:16/1:1/4:3/3:4；video_model: fast/standard/fast_vip/standard_vip；resolution: fast 和 standard 固定 720p，fast_vip 可传 480p/720p，standard_vip 可传 480p/720p/1080p；functionMode: omini/first_last_frame；image_files 最多 9 张；video_files 最多 3 个；audio_files 最多 3 个；首尾帧模式传 image_url/end_image_url；seed 可选",
   },
   {
     id: "openai/gpt-image-2",
@@ -156,6 +156,13 @@ const paramSections = [
       { name: "model", required: "是", type: "string", values: "视频模型 ID，见模型参数表" },
       { name: "prompt", required: "是", type: "string", values: "1-5000 字符" },
       { name: "image_url", required: "按模型", type: "url", values: "图生视频传公网可访问图片地址" },
+      { name: "end_image_url", required: "否", type: "url", values: "仅 seedance2 首尾帧模式使用，尾帧图片地址" },
+      { name: "image_files", required: "否", type: "url[]", values: "仅 seedance2 多素材参考模式使用，最多 9 张图片 URL" },
+      { name: "video_url", required: "否", type: "url", values: "仅 seedance2，单个参考视频 URL" },
+      { name: "video_files", required: "否", type: "url[]", values: "仅 seedance2，多参考视频 URL，最多 3 个" },
+      { name: "audio_files", required: "否", type: "url[]", values: "仅 seedance2，参考音频 URL，最多 3 个，需搭配图片或视频" },
+      { name: "functionMode", required: "否", type: "string", values: "仅 seedance2: omini / first_last_frame，默认 omini" },
+      { name: "seed", required: "否", type: "integer", values: "仅 seedance2，随机种子" },
       { name: "duration", required: "否", type: "string | number", values: "按模型取值传" },
       { name: "aspect_ratio 或 ratio", required: "否", type: "string", values: "16:9 / 9:16 / 1:1 等，按模型取值传" },
       { name: "resolution", required: "否", type: "string", values: "seedance2: fast、standard 固定 720p；fast_vip 可传 480p/720p；standard_vip 可传 480p/720p/1080p；其他模型见模型参数表" },
@@ -204,12 +211,23 @@ function videoCurl(token: string) {
   -H "Content-Type: application/json" \\
   -d '{
     "model": "seedance2",
-    "prompt": "一条 10 秒的未来城市穿行动画，镜头推近，光线高级",
-    "image_url": "https://example.com/first-frame.png",
+    "prompt": "【@图片1】跟随【@音频1】节奏跳动，镜头推近，光线高级",
+    "image_files": [
+      "https://example.com/first-frame.png",
+      "https://example.com/style-reference.png"
+    ],
+    "video_files": [
+      "https://example.com/reference.mp4"
+    ],
+    "audio_files": [
+      "https://example.com/music.mp3"
+    ],
     "aspect_ratio": "9:16",
     "duration": 10,
     "video_model": "standard_vip",
     "resolution": "720p",
+    "functionMode": "omini",
+    "seed": 123456,
     "async": true
   }'`;
 }
@@ -257,6 +275,11 @@ seedance2 video_model:
 
 图生图或图生视频:
 - image_url 传公网可访问图片地址
+
+seedance2 多素材:
+- functionMode 传 omini 时，image_files 支持最多 9 张图片 URL，video_files 支持最多 3 个视频 URL，audio_files 支持最多 3 个音频 URL
+- functionMode 传 first_last_frame 时，image_url 是首帧，end_image_url 是尾帧
+- seed 可传整数；prompt 中可用【@图片1】、【@音频1】引用对应素材
 
 建议:
 - 生成接口传 async: true
@@ -313,7 +336,7 @@ export function HomeApiSection({
           </p>
           <div className="mt-7 grid gap-3 text-sm text-slate-300">
             <Fact icon={Video} label="视频参数" value="video_model: fast / standard / fast_vip / standard_vip" />
-            <Fact icon={ImageIcon} label="参考图片" value="image_url" />
+            <Fact icon={ImageIcon} label="参考素材" value="image_files / video_files / audio_files" />
           </div>
         </aside>
 
