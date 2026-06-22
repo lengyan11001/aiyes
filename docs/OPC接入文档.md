@@ -43,6 +43,7 @@
     ],
     "consume": [
       {
+        "cost_id": "ledger_xxx",
         "name": "seedance2",
         "type": "视频生成",
         "result": "视频10秒",
@@ -93,6 +94,7 @@
 
 | 字段 | 类型 | 是否必填 | 描述 |
 | --- | --- | --- | --- |
+| `cost_id` | string | 是 | 消耗记录 ID，用于唯一标识本次扣费流水 |
 | `name` | string | 是 | 模型/工具名称，例如：`seedance2` |
 | `type` | string | 是 | 模型/工具类型，例如：`视频生成` |
 | `result` | string | 是 | 生成结果，例如：`视频10秒`、`图片1张`、`音频10秒` |

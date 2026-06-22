@@ -1,4 +1,4 @@
-import { JobKind, OrderStatus, type ApiKey, type GenerationJob, type User } from "@prisma/client";
+import { JobKind, LedgerType, OrderStatus, type ApiKey, type GenerationJob, type User } from "@prisma/client";
 import { isAllowedModel } from "@/lib/constants";
 import { sha256 } from "@/lib/crypto";
 import { env } from "@/lib/env";
@@ -46,6 +46,7 @@ type OpcDataSubjectResponse = {
     order_id: string;
   }>;
   consume: Array<{
+    cost_id: string;
     name: string;
     type: string;
     result: string;
@@ -331,7 +332,21 @@ async function buildSubjectData(
     prisma.generationJob.findMany({
       where: { ...jobWhere, status: "COMPLETED", chargedCents: { gt: 0 } },
       orderBy: { createdAt: "asc" },
-      select: { id: true, kind: true, model: true, params: true, chargedCents: true, completedAt: true, createdAt: true },
+      select: {
+        id: true,
+        kind: true,
+        model: true,
+        params: true,
+        chargedCents: true,
+        completedAt: true,
+        createdAt: true,
+        ledgers: {
+          where: { type: LedgerType.DEBIT },
+          orderBy: { createdAt: "asc" },
+          take: 1,
+          select: { id: true },
+        },
+      },
     }),
     prisma.generationJob.findMany({
       where: { userId: user.id, status: "COMPLETED" },
@@ -366,6 +381,7 @@ async function buildSubjectData(
         order_id: order.id,
       })),
       consume: consumeJobs.map((job) => ({
+        cost_id: job.ledgers[0]?.id ?? job.id,
         name: publicGenerationModelLabel(job.model, job.params),
         type: modelType(job),
         result: jobResultText(job),
