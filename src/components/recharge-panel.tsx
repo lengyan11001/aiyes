@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, CreditCard, Loader2, QrCode, RefreshCw, WalletCards } from "lucide-react";
 import QRCode from "qrcode";
 import { formatPoints, formatYuanFromFen, RECHARGE_TIERS_POINTS } from "@/lib/units";
@@ -25,15 +25,13 @@ interface OrderPayment {
   sessionId?: string | null;
 }
 
-export function RechargePanel({ compact = false }: { compact?: boolean }) {
+export function RechargePanel() {
   const [amountCents, setAmountCents] = useState(RECHARGE_TIERS_POINTS[0]);
   const [order, setOrder] = useState<RechargeOrder | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
   const [message, setMessage] = useState("");
-  const autoCreatedRef = useRef(false);
-
   const quickAmounts = useMemo(() => RECHARGE_TIERS_POINTS, []);
 
   const createOrder = useCallback(async (nextAmountCents = amountCents) => {
@@ -121,19 +119,13 @@ export function RechargePanel({ compact = false }: { compact?: boolean }) {
     };
   }, []);
 
-  useEffect(() => {
-    if (!compact || autoCreatedRef.current) return;
-    autoCreatedRef.current = true;
-    void createOrder(RECHARGE_TIERS_POINTS[0]);
-  }, [compact, createOrder]);
-
   return (
-    <div className={compact ? "" : "rounded-lg border border-white/10 bg-slate-950 p-5 text-white"}>
+    <div className="rounded-lg border border-white/10 bg-slate-950 p-5 text-white">
       <div className="flex items-center justify-between gap-4">
         <div>
-          {!compact && <h2 className="text-xl font-semibold">账户充值</h2>}
-          <p className={compact ? "text-sm text-slate-400" : "mt-1 text-sm text-slate-400"}>
-            微信扫码支付后自动入账，按 1 元 = 100 积分记账。
+          <h2 className="text-xl font-semibold">账户充值</h2>
+          <p className="mt-1 text-sm text-slate-400">
+            点击「去支付」会跳转到 pay.5vips.com 安全收银台，支付完成后自动入账，按 1 元 = 100 积分记账。
           </p>
         </div>
         <WalletCards className="h-5 w-5 text-slate-300" />
@@ -146,7 +138,6 @@ export function RechargePanel({ compact = false }: { compact?: boolean }) {
             type="button"
             onClick={() => {
               setAmountCents(amount);
-              if (compact) void createOrder(amount);
             }}
             disabled={loading}
             className={`rounded-md border px-3 py-2 text-sm font-medium ${
@@ -160,26 +151,18 @@ export function RechargePanel({ compact = false }: { compact?: boolean }) {
         ))}
       </div>
 
-      {!compact && (
-        <div className="mt-4 flex flex-wrap items-end gap-3">
-          <span className="text-sm text-slate-400">到账 {formatPoints(amountCents)}</span>
-          <button
-            type="button"
-            onClick={() => createOrder()}
-            disabled={loading || amountCents < 100}
-            className="inline-flex h-10 items-center gap-2 rounded-md bg-white px-4 text-sm font-medium text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-400"
-          >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-            去支付
-          </button>
-        </div>
-      )}
-
-      {compact && (
-        <div className="mt-4 rounded-md bg-white/[0.04] px-3 py-2 text-sm text-slate-400">
-          选择档位后会跳转到 pay.5vips.com 完成支付，当前到账 {formatPoints(amountCents)}。
-        </div>
-      )}
+      <div className="mt-4 flex flex-wrap items-end gap-3">
+        <span className="text-sm text-slate-400">到账 {formatPoints(amountCents)}</span>
+        <button
+          type="button"
+          onClick={() => createOrder()}
+          disabled={loading || amountCents < 100}
+          className="inline-flex h-10 items-center gap-2 rounded-md bg-white px-4 text-sm font-medium text-slate-950 disabled:cursor-not-allowed disabled:bg-slate-400"
+        >
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+          去支付
+        </button>
+      </div>
 
       {order && (
         <div className="mt-5 grid gap-4 rounded-md border border-white/10 bg-white/[0.04] p-4 md:grid-cols-[240px_1fr]">
