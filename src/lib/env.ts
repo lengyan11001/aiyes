@@ -33,6 +33,13 @@ const envSchema = z.object({
   WECHAT_PAY_PUBLIC_KEY_PATH: z.string().optional(),
   WECHAT_PAY_PUBLIC_KEY_ID: z.string().optional(),
   WECHAT_NOTIFY_URL: z.string().url().optional(),
+  STRIPE_PAY5_SECRET_KEY: z.string().optional(),
+  STRIPE_PAY5_ACCOUNT_ID: z.string().optional(),
+  STRIPE_CURRENCY: z.string().default("cny"),
+  STRIPE_API_BASE_URL: z.string().url().default("https://api.stripe.com"),
+  PAY5_CASHIER_BASE_URL: z.string().url().default("https://pay.5vips.com"),
+  PAY5_CASHIER_PATH: z.string().default("/aiyes/"),
+  STRIPE_CASHIER_ALLOWED_ORIGINS: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);
@@ -61,4 +68,26 @@ export function isWechatConfigured() {
       (wechatEnv.privateKey || wechatEnv.privateKeyPath) &&
       wechatEnv.notifyUrl,
   );
+}
+
+/**
+ * Shared Stripe account used by the pay.5vips.com cashier.
+ * aiyes-5vips creates its own Checkout Sessions with the same account so the
+ * hosted checkout behaves like the 123vips cashier.
+ */
+export const stripeEnv = {
+  secretKey: env.STRIPE_PAY5_SECRET_KEY,
+  accountId: env.STRIPE_PAY5_ACCOUNT_ID || "",
+  currency: (env.STRIPE_CURRENCY || "cny").trim().toLowerCase(),
+  apiBaseUrl: env.STRIPE_API_BASE_URL.replace(/\/+$/, ""),
+  cashierBaseUrl: env.PAY5_CASHIER_BASE_URL.replace(/\/+$/, ""),
+  cashierPath: env.PAY5_CASHIER_PATH.startsWith("/") ? env.PAY5_CASHIER_PATH : `/${env.PAY5_CASHIER_PATH}`,
+  allowedOrigins: (env.STRIPE_CASHIER_ALLOWED_ORIGINS || "https://pay.5vips.com")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+};
+
+export function isStripeConfigured() {
+  return Boolean(stripeEnv.secretKey);
 }

@@ -4,6 +4,7 @@ import { markOrderPaid } from "@/lib/billing";
 import { jsonError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
+import { reconcileStripeOrder } from "@/lib/stripe-pay";
 import { queryWechatOrder } from "@/lib/wechat-pay";
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
@@ -13,6 +14,23 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   const order = await prisma.order.findFirst({ where: { id, userId: user.id } });
   if (!order) return jsonError("订单不存在。", 404, "not_found");
   if (order.status === OrderStatus.PAID) return NextResponse.json({ order });
+
+  if (order.provider === "stripe") {
+    try {
+      const result = await reconcileStripeOrder(order);
+      return NextResponse.json({
+        order: result.order,
+        trade: result.session,
+        credited: result.credited,
+        reason: result.reason,
+      });
+    } catch (error) {
+      return NextResponse.json({
+        order,
+        warning: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
 
   try {
     const trade = await queryWechatOrder(order.id);
