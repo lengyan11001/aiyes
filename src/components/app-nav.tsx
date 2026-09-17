@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { useState } from "react";
+import { RechargeDialog } from "@/components/recharge-dialog";
 import { UserMenu, type MenuUser } from "@/components/user-menu";
-import { goToCashier } from "@/lib/recharge-client";
 import { formatPoints } from "@/lib/units";
 
 type ActiveTab = "generate" | "recharge" | "keys";
@@ -16,52 +15,31 @@ function navClass(active: boolean) {
 }
 
 export function AppNav({ user, active }: { user: MenuUser; active?: ActiveTab }) {
-  const [starting, setStarting] = useState(false);
-
-  // 充值直接跳 pay.5vips.com 收银台，不再弹出站内充值弹窗。
-  const startTopUp = useCallback(async () => {
-    if (starting) return;
-    setStarting(true);
-    try {
-      await goToCashier();
-    } catch {
-      window.location.assign("/recharge");
-    } finally {
-      setStarting(false);
-    }
-  }, [starting]);
+  // 只选档位的小窗，选完直接跳 pay.5vips.com 收银台。
+  const [rechargeOpen, setRechargeOpen] = useState(false);
 
   return (
-    <header className="relative z-[200] flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6">
-      <nav className="flex items-center gap-6 text-sm">
-        <Link href="/generate" className={navClass(active === "generate")}>
-          图片/视频生成
-        </Link>
-        <button
-          type="button"
-          onClick={() => void startTopUp()}
-          disabled={starting}
-          className={navClass(active === "recharge")}
-        >
-          {starting ? (
-            <span className="inline-flex items-center gap-1.5">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              跳转中
-            </span>
-          ) : (
-            "充值"
-          )}
-        </button>
-        <Link href="/console" className={navClass(active === "keys")}>
-          API Key
-        </Link>
-      </nav>
-      <div className="flex items-center gap-3">
-        <span className="hidden rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-700 sm:inline-flex">
-          余额 {formatPoints(user.balanceCents)}
-        </span>
-        <UserMenu user={user} onRecharge={() => void startTopUp()} />
-      </div>
-    </header>
+    <>
+      <header className="relative z-[200] flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6">
+        <nav className="flex items-center gap-6 text-sm">
+          <Link href="/generate" className={navClass(active === "generate")}>
+            图片/视频生成
+          </Link>
+          <button type="button" onClick={() => setRechargeOpen(true)} className={navClass(active === "recharge")}>
+            充值
+          </button>
+          <Link href="/console" className={navClass(active === "keys")}>
+            API Key
+          </Link>
+        </nav>
+        <div className="flex items-center gap-3">
+          <span className="hidden rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-700 sm:inline-flex">
+            余额 {formatPoints(user.balanceCents)}
+          </span>
+          <UserMenu user={user} onRecharge={() => setRechargeOpen(true)} />
+        </div>
+      </header>
+      <RechargeDialog open={rechargeOpen} onClose={() => setRechargeOpen(false)} />
+    </>
   );
 }
